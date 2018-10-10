@@ -142,8 +142,8 @@ def normal_data(data, reverse=False):
     :param reverse: 反标准化
     :return data: 去均值后的数组
     """
-    global normal_data_min
-    global normal_data_gap
+    global normal_data_min  # 将归一化的数据供后面的程序调用，每列的最小值
+    global normal_data_gap  # 最大值减去最小值
     if reverse is False:
         data = np.array(data)
         normal_data_min = data.min(axis=0)
@@ -356,7 +356,7 @@ def cnn_train(data, label):
     :param label:
     :return:
     """
-    global y_test
+    global x_train, x_test, y_train, y_test
     x_train, x_test, y_train, y_test = train_test_split(data, label, test_size=0.2, shuffle=False)
     x_1 = tf.placeholder(tf.float32, [None, nn_config.TIME_STEPS * nn_config.SPACE_STEPS], name='x-input')
     y_ = tf.placeholder(tf.float32, [None, nn_config.OUTPUT_NODE], name='y-input')
