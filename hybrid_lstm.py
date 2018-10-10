@@ -209,20 +209,6 @@ def lstm_train(data, label):
         output, _ = tf.nn.dynamic_rnn(cell, input_tensor_image, dtype=tf.float32)
         y_lstm = tf.transpose(output, [1, 0, 2])
 
-    # # 如果使用手动提取的特征则使用下面的代码
-    # x_2 = tf.placeholder(tf.float32, [None, nn_config.INPUT_NODE_VAR], name='x-input')
-    # y_concat = tf.concat(y_lstm, x_2)
-    # with tf.VariableScope('fc_1'):
-    #     fc1_weights = get_weight_variable([nn_config.HIDDEN_NODE + nn_config.INPUT_NODE_VAR, nn_config.FC_HIDDEN],
-    #                                       regularizer=regularizer)
-    #     fc1_biases = get_bais_variable([nn_config.FC_HIDDEN])
-    #     fc1 = tf.nn.relu(tf.matmul(y_concat, fc1_weights) + fc1_biases)
-    #
-    # with tf.VariableScope('fc_2'):
-    #     fc2_weights = get_weight_variable([nn_config.FC_HIDDEN, nn_config.OUTPUT_NODE],
-    #                                       regularizer=regularizer)
-    #     fc2_biases = get_bais_variable([nn_config.OUTPUT_NODE])
-    #     y = tf.matmul(fc1, fc2_weights) + fc2_biases
 
     # # 不使用手动提取的特征
     with tf.variable_scope('fc_2'):
