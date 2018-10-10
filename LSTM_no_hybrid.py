@@ -3,7 +3,7 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   lstm_no_hybrid.py
+@File    :   LSTM_no_hybrid.py
 @Time    :   2018/10/10 16:47
 @Desc    :
 """
