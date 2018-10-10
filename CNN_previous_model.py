@@ -3,7 +3,7 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   demo.py
+@File    :   CNN_previous_model.py
 @Time    :   2018/10/5 11:05
 @Desc    :
 """
