@@ -7,12 +7,11 @@ Created on Sun Sep 16 20:41:46 2018
 
 import pandas as pd
 
-def generate_data(filedir):
-    
-    data = pd.read_excel(filedir, sheetname=[0,2])
-    speed_data = data[0]
-    flow_data = data[2]
-    
+
+def generate_data(speed_file_dir, flow_file_dir):
+    speed_data = pd.read_excel(speed_file_dir, sheetname=[1])
+    flow_data = pd.read_excel(flow_file_dir, sheetname=[1])
+
     """
     sheetname:
         0: speed
@@ -22,8 +21,11 @@ def generate_data(filedir):
         4: lane number
         5: Dates with available data
     """
-    
-    
-    flow_data.to_csv('flow_data.csv', index_label='Datetime \ Milepost')
-    speed_data.to_csv('speed_data.csv', index_label='Datetime \ Milepost')
-    
+
+    flow_data.to_csv('flow_data_60.csv', index_label='Datetime \ Milepost')
+    speed_data.to_csv('speed_data_60.csv', index_label='Datetime \ Milepost')
+
+if __name__ == '__main__':
+    speed_file_dir = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\405_month2_4_speed.xlsx'
+    flow_file_dir = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\405_month2_4_flow.xlsx'
+    generate_data(speed_file_dir, flow_file_dir)

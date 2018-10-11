@@ -59,10 +59,10 @@ class DataProcessConfig(object):
     SPEED_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data.csv'
     flow_frac_param = 0.05      # 用于平滑流量的参数
     speed_frac_param = 0.05     # 用于平滑速度的参数
-    var_calc_step = 4           # 使用之前多场的时滞来计算当前的方差
+    var_calc_step = 2           # 使用之前多长的时滞来计算当前的方差
     slide_slect = True          # 构造数据是否使用滑动选取数据
     data_select = ['17.99']     # 仿真使用的数据是哪个路口的
-    disp_day = 1                # 画图展示的日期
+    disp_day = 2                # 画图展示的日期
     disp_seg = [x for x in range(288 * (disp_day - 1), 288 * disp_day)]
 
 
@@ -447,6 +447,14 @@ if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
     merged_data = merge_data(file_config)
+
+    plt.plot(merged_data[0:288, :4])
+    plt.show()
+
+
+
+
+
     # 仅使用流量作为输入
     data_ = data_pro(merged_data[:, nn_config.WHITCH_FEATURE], nn_config.TIME_STEPS, True)
     label_ = merged_data[nn_config.TIME_STEPS:, 1]
