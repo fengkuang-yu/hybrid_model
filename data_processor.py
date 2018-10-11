@@ -7,6 +7,11 @@ Created on Sun Sep 16 20:41:46 2018
 
 import numpy as np
 import pandas as pd
+import matplotlib.pylab as plt
+import datetime
+import time
+import matplotlib.ticker as ticker
+from matplotlib.dates import DateFormatter, drange
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
@@ -27,13 +32,13 @@ class DataProcessConfig(object):
     选取的路段编号：data_select
     误差计算选用的方案：error_tend
     """
-    FLOW_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data.csv'
-    SPEED_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data.csv'
+    FLOW_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv'
+    SPEED_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_59.csv'
     flow_frac_param = 0.05  # 用于平滑流量的参数
     speed_frac_param = 0.05  # 用于平滑速度的参数
     var_calc_step = 2  # 使用之前多长的时滞来计算当前的方差
     slide_slect = True  # 构造数据是否使用滑动选取数据
-    data_select = ['17.99']  # 仿真使用的数据是哪个路口的
+    data_select = ['20.93']  # 仿真使用的数据是哪个路口的
     disp_day = 2  # 画图展示的日期
     disp_seg = [x for x in range(288 * (disp_day - 1), 288 * disp_day)]
 
@@ -157,5 +162,60 @@ def smooth_data(data, frac_param=None):
     return filtered[:, 1].reshape(-1, 1)
 
 
+def merge_data(file_config=None):
+    """
+    神经网络的训练和测试数据集制作
+    :param file_config: 数据集中的参数
+    :return: 返回做好的数据集
+    """
+    global speed_demo, flow_demo
+    flow_data = pd.read_csv(file_config.FLOW_DIR, index_col='Datetime \ Milepost')
+    speed_data = pd.read_csv(file_config.SPEED_DIR, index_col='Datetime \ Milepost')
+
+    flow_demo = np.array(flow_data[file_config.data_select], dtype=float)
+    speed_demo = np.array(speed_data[file_config.data_select], dtype=float)
+
+    smoothed_flow = smooth_data(flow_demo, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
+    flow_demo_var = var_calc(flow_demo, smoothed_flow, calc_step=file_config.var_calc_step)
+    smoothed_speed = smooth_data(speed_demo, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
+    speed_demo_var = var_calc(speed_demo, smoothed_speed, calc_step=file_config.var_calc_step)
+    flow_demo_var = normal_data(flow_demo_var)
+    speed_demo_var = normal_data(speed_demo_var)
+    flow_demo_var = flow_demo_var.clip(0, 0.5) * 2  # 除去流量的奇异值
+    speed_demo_var = speed_demo_var.clip(0, 0.5) * 2  # 除去速度的奇异值
+    merge_data = np.concatenate([speed_demo,
+                                 flow_demo,
+                                 flow_demo_var,
+                                 speed_demo_var,
+                                 smoothed_flow,
+                                 smoothed_speed], axis=1)
+    norm_data = normal_data(merge_data)
+    norm_data = norm_data[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
+    return norm_data
+
+
 if __name__ == '__main__':
-    csv_file_generator()
+    # 第一张图片，没有发生拥塞时的
+    file_config = DataProcessConfig()
+    file_config.flow_frac_param = 0.08
+    file_config.var_calc_step = 12
+    file_config.disp_day = 1
+    merged_data = merge_data(file_config)
+    formatter = DateFormatter('%H:%M')  # 时间表现形式，这里只显示了时分
+    d1 = datetime.datetime(2018, 2, 10, 0, 0, 0)
+    d2 = datetime.datetime(2018, 2, 11, 0, 0, 0)
+    delta = datetime.timedelta(minutes=5)  # 以0.5秒为间隔生成时间序列
+    dates = drange(d1, d2, delta)
+    fig, ax = plt.subplots()
+    plt.plot(dates, merged_data[file_config.disp_seg, 0:4])
+    ax.xaxis.set_major_formatter(formatter)
+    tick_spacing = 1/6
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+    ax.xaxis.set_tick_params(rotation=0, labelsize=10)
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=1)
+    plt.ylabel('The magnitude of normalized data')
+    plt.xlabel('Time(h)')
+    plt.show()
+
