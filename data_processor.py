@@ -5,12 +5,12 @@ Created on Sun Sep 16 20:41:46 2018
 @author: yyh
 """
 
+import datetime
+
+import matplotlib.pylab as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
-import matplotlib.pylab as plt
-import datetime
-import time
-import matplotlib.ticker as ticker
 from matplotlib.dates import DateFormatter, drange
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
@@ -40,7 +40,6 @@ class DataProcessConfig(object):
     slide_slect = True  # 构造数据是否使用滑动选取数据
     data_select = ['20.93']  # 仿真使用的数据是哪个路口的
     disp_day = 2  # 画图展示的日期
-    disp_seg = [x for x in range(288 * (disp_day - 1), 288 * disp_day)]
 
 
 def csv_file_generator():
@@ -196,26 +195,74 @@ def merge_data(file_config=None):
 
 if __name__ == '__main__':
     # 第一张图片，没有发生拥塞时的
-    file_config = DataProcessConfig()
-    file_config.flow_frac_param = 0.08
-    file_config.var_calc_step = 12
-    file_config.disp_day = 1
-    merged_data = merge_data(file_config)
-    formatter = DateFormatter('%H:%M')  # 时间表现形式，这里只显示了时分
-    d1 = datetime.datetime(2018, 2, 10, 0, 0, 0)
-    d2 = datetime.datetime(2018, 2, 11, 0, 0, 0)
-    delta = datetime.timedelta(minutes=5)  # 以0.5秒为间隔生成时间序列
-    dates = drange(d1, d2, delta)
-    fig, ax = plt.subplots()
-    plt.plot(dates, merged_data[file_config.disp_seg, 0:4])
-    ax.xaxis.set_major_formatter(formatter)
-    tick_spacing = 1/6
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
-    ax.xaxis.set_tick_params(rotation=0, labelsize=10)
-    plt.rcParams['savefig.dpi'] = 300  # 图片像素
-    plt.rcParams['figure.dpi'] = 300  # 分辨率
-    plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=1)
-    plt.ylabel('The magnitude of normalized data')
-    plt.xlabel('Time(h)')
-    plt.show()
+    def without_blocking(disp_day=2):
+        """
+        画出没有拥塞的图
+        :param disp_day: 默认展示第二天的情况
+        :return:
+        """
+        file_config = DataProcessConfig()
+        file_config.flow_frac_param = 0.05
+        file_config.var_calc_step = 12
+        file_config.disp_day = 2
+        disp_seg = [x for x in range(288 * (file_config.disp_day - 1) - file_config.var_calc_step,
+                                     288 * file_config.disp_day - file_config.var_calc_step)]
+        merged_data = merge_data(file_config)
+        formatter = DateFormatter('%H:%M')  # 时间表现形式，这里只显示了时分
+        d1 = datetime.datetime(2018, 2, 10, 0, 0, 0)
+        d2 = datetime.datetime(2018, 2, 11, 0, 0, 0)
+        delta = datetime.timedelta(minutes=5)  # 以0.5秒为间隔生成时间序列
+        x = drange(d1, d2, delta)
+        y = merged_data[disp_seg, 0:4]
+        fig1, ax1 = plt.subplots()
+        plt.plot(x, y)
+        ax1.xaxis.set_major_formatter(formatter)
+        tick_spacing = 1 / 6
+        ax1.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+        ax1.xaxis.set_tick_params(rotation=0, labelsize=10)
+        plt.rcParams['savefig.dpi'] = 300  # 图片像素
+        plt.rcParams['figure.dpi'] = 300  # 分辨率
+        plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=1)
+        plt.ylabel('The magnitude of normalized data')
+        plt.xlabel('Time(h)')
+        plt.savefig('Data/figures/without_bolck.png')
+        plt.show()
 
+
+    # 发生拥塞时的四种关系17,18
+    def blocking(disp_day=17):
+        """
+        画图程序，画出拥塞时的图
+        :param disp_day:
+        :return:
+        """
+        file_config = DataProcessConfig()
+        file_config.flow_frac_param = 0.06
+        file_config.var_calc_step = 12
+        file_config.disp_day = disp_day
+        disp_seg = [x for x in range(288 * (file_config.disp_day - 1) - file_config.var_calc_step,
+                                     288 * file_config.disp_day - file_config.var_calc_step)]
+        merged_data = merge_data(file_config)
+        formatter = DateFormatter('%H:%M')  # 时间表现形式，这里只显示了时分
+        d1 = datetime.datetime(2018, 2, 10, 0, 0, 0)
+        d2 = datetime.datetime(2018, 2, 11, 0, 0, 0)
+        delta = datetime.timedelta(minutes=5)  # 以0.5秒为间隔生成时间序列
+        x = drange(d1, d2, delta)
+        y = merged_data[disp_seg, 0:4]
+        fig2, ax2 = plt.subplots()
+        plt.plot(x, y)
+        ax2.xaxis.set_major_formatter(formatter)
+        tick_spacing = 1 / 6
+        ax2.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+        ax2.xaxis.set_tick_params(rotation=0, labelsize=10)
+        plt.rcParams['savefig.dpi'] = 300  # 图片像素
+        plt.rcParams['figure.dpi'] = 300  # 分辨率
+        plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=4)
+        plt.ylabel('The magnitude of normalized data')
+        plt.xlabel('Time(h)')
+        plt.show()
+        plt.savefig('Data/figures/with_bolck.png')
+
+
+
+    blocking(18)
