@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
 
     # 发生拥塞时的四种关系17,18
-    def blocking(disp_day=17):
+    def blocking(disp_day=20):
         """
         画图程序，画出拥塞时的图
         :param disp_day:
