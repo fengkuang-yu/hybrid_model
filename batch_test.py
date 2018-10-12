@@ -25,7 +25,8 @@ if __name__ == '__main__':
                                                       batch_size=batch_size,
                                                       num_threads=32,
                                                       capacity=capacity,
-                                                      min_after_dequeue=50)
+                                                      min_after_dequeue=50,
+                                                      allow_smaller_final_batch=True)
     # 重新排列label，行数为[batch_size]
     # label_batch = tf.reshape(label_batch, [batch_size])
     # image_batch = tf.cast(image_batch, tf.float32)

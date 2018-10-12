@@ -9,11 +9,11 @@
 """
 
 import os
-import matplotlib.pyplot as plt
-import numpy as np
+
 import tensorflow as tf
-from data_processor import *
 from sklearn.model_selection import train_test_split
+
+from data_processor import *
 
 
 class LstmConfig(object):
@@ -35,7 +35,7 @@ class LstmConfig(object):
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
     QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
     MIN_AFTER_DEQUEUE = 5000
-    EPOCHS =150
+    EPOCHS = 150
     MODEL_SAVE_PATH = r"D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver"
     MODEL_NAME = "model"
 
@@ -193,10 +193,10 @@ def lstm_train_hybrid(data1, data2, label):
     label = input_queue[1]
     image = input_queue[0]  # read img from a queue
     train_datas1, train_datas2, train_label = tf.train.shuffle_batch([x_train, x_train2, y_train],
-                                                      batch_size=batch_size,
-                                                      num_threads=32,
-                                                      capacity=capacity,
-                                                      min_after_dequeue=50)
+                                                                     batch_size=batch_size,
+                                                                     num_threads=32,
+                                                                     capacity=nn_config.QUEUE_CAPACITY,
+                                                                     min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
     train_datas1 = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
     train_datas2 = tf.reshape(train_datas2, [-1, nn_config.INPUT_NODE_VAR])
     train_label = tf.reshape(train_label, [-1, 1])
