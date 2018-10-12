@@ -21,29 +21,21 @@ if __name__ == '__main__':
     input_queue = tf.train.slice_input_producer([data, label])
     label = input_queue[1]
     image = input_queue[0]  # read img from a queue
-    image_batch, label_batch = tf.train.batch([image, label],
-                                              batch_size=batch_size,
-                                              num_threads=32,
-                                              capacity=capacity)
+    image_batch, label_batch = tf.train.shuffle_batch([image, label],
+                                                      batch_size=batch_size,
+                                                      num_threads=32,
+                                                      capacity=capacity,
+                                                      min_after_dequeue=50)
     # 重新排列label，行数为[batch_size]
-    label_batch = tf.reshape(label_batch, [batch_size])
-    image_batch = tf.cast(image_batch, tf.float32)
+    # label_batch = tf.reshape(label_batch, [batch_size])
+    # image_batch = tf.cast(image_batch, tf.float32)
 
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        for i in range(20):
-            cur_example_batch, cur_label_batch = sess.run(
-                [image_batch, label_batch])
-            print(cur_label_batch)
+        for i in range(2):
+            cur_example_batch, cur_label_batch = sess.run([image_batch, label_batch])
+            print(cur_example_batch, cur_label_batch)
         coord.request_stop()
         coord.join(threads)
-
-
-
-
-
-
-
-

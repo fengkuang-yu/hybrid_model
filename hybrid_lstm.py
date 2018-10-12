@@ -33,6 +33,9 @@ class LstmConfig(object):
     TRAINING_STEPS = 50000  # 迭代次数
     DISP_PER_TIMES = 1000  # 间隔多少次显示预测效果
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
+    QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
+    MIN_AFTER_DEQUEUE = 5000
+    EPOCHS =150
     MODEL_SAVE_PATH = r"D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver"
     MODEL_NAME = "model"
 
@@ -185,25 +188,35 @@ def lstm_train_hybrid(data1, data2, label):
     train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss, global_step=global_step)
     with tf.control_dependencies([train_step, variables_averages_op]):
         train_op = tf.no_op(name='train')
-
+    # 生成batch的数据配置
+    input_queue = tf.train.slice_input_producer([data, label])
+    label = input_queue[1]
+    image = input_queue[0]  # read img from a queue
+    train_datas1, train_datas2, train_label = tf.train.shuffle_batch([x_train, x_train2, y_train],
+                                                      batch_size=batch_size,
+                                                      num_threads=32,
+                                                      capacity=capacity,
+                                                      min_after_dequeue=50)
+    train_datas1 = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
+    train_datas2 = tf.reshape(train_datas2, [-1, nn_config.INPUT_NODE_VAR])
+    train_label = tf.reshape(train_label, [-1, 1])
     # 初始化TensorFlow持久化类。
     saver = tf.train.Saver()
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         for i in range(nn_config.TRAINING_STEPS):
-            sample1 = np.random.randint(0, x_train.shape[0], size=(1, nn_config.BATCH_SIZE))
-            train_datas1 = x_train[sample1].reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
-            train_datas2 = x_train2[sample1].reshape(-1, nn_config.INPUT_NODE_VAR)
-            train_label = y_train[sample1].reshape(-1, 1)
-
+            cur_lstm_data, cur_hybird_data, cur_label = sess.run([train_datas1, train_datas2, train_label])
             _, loss_value, step = sess.run([train_op, loss, global_step],
-                                           feed_dict={x_1: train_datas1,
-                                                      x_2: train_datas2,
-                                                      y_: train_label})
+                                           feed_dict={x_1: cur_lstm_data,
+                                                      x_2: cur_hybird_data,
+                                                      y_: cur_label})
 
             if i % nn_config.DISP_PER_TIMES == 0:
                 print("After %d training step(s), loss on training batch is %g." % (step, loss_value))
+        coord.request_stop()
+        coord.join(threads)
         saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
         print("Optimization Finished!")
         # test
