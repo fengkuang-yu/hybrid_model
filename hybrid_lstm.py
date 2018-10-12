@@ -131,35 +131,39 @@ def lstm_train(data, label):
 def lstm_train_hybrid(data1, data2, label):
     """
     神经网络部分
-    :param data1: 输入的数据
-    :param label: 对应的标签
-    :param data2: 输入的数据
+    :param data1: 输入给LSTM神经网络的数据
+    :param label: 网络的输出对应的标签即预测时刻的交通流量
+    :param data2: 手工提取特征的输入的数据
     :return: 神经网络的输出结果
     """
+    # 数据测试集和训练集划分
     global y_test
     x_train, x_test, y_train, y_test = train_test_split(data1, label, test_size=0.2, shuffle=False)
     x_train2, x_test2, y_train2, y_test2 = train_test_split(data2, label, test_size=0.2, shuffle=False)
-    x_1 = tf.placeholder(tf.float32, [None, nn_config.TIME_STEPS * nn_config.SPACE_STEPS], name='x-input')
+
+    # 声明数据的占位符
+    x_1 = tf.placeholder(tf.float32, [None, nn_config.TIME_STEPS * nn_config.SPACE_STEPS], name='x-input1')
+    x_2 = tf.placeholder(tf.float32, [None, nn_config.INPUT_NODE_VAR], name='x-input2')
     y_ = tf.placeholder(tf.float32, [None, nn_config.OUTPUT_NODE], name='y-input')
-    regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE)
+    regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE) #  使用L2正则化
     input_tensor_image = tf.reshape(x_1, [-1, nn_config.TIME_STEPS, nn_config.SPACE_STEPS])
 
+    # 标准的LSTM模块
     def lstm():
-        lstm_fw_cell = tf.contrib.rnn.BasicLSTMCell(nn_config.HIDDEN_NODE, forget_bias=1.0,
+        lstm_fw_cell = tf.contrib.rnn.BasicLSTMCell(nn_config.HIDDEN_NODE,
+                                                    forget_bias=1.0,
                                                     state_is_tuple=True,
                                                     reuse=tf.get_variable_scope().reuse)
         return lstm_fw_cell
-
     with tf.variable_scope(None, default_name="Rnn1"):
-        #    cell = tf.contrib.rnn.MultiRNNCell([cell1, cell2])
         cell = tf.contrib.rnn.MultiRNNCell([lstm() for _ in range(nn_config.STACKED_LAYERS)], state_is_tuple=True)
         output, _ = tf.nn.dynamic_rnn(cell, input_tensor_image, dtype=tf.float32)
         y_lstm = tf.transpose(output, [1, 0, 2])
 
-    # 如果使用手动提取的特征则使用下面的代码
-    x_2 = tf.placeholder(tf.float32, [None, nn_config.INPUT_NODE_VAR], name='x-input')
+    # 处理手工提取的特征，将神经网络提取的特征和手工提取的特征合并
     y_concat = tf.concat([y_lstm[-1], x_2], axis=1)
 
+    # 定义DNN神经网络处理混合特征数据
     with tf.variable_scope('fc_1'):
         fc1_weights = get_weight_variable([nn_config.HIDDEN_NODE + nn_config.INPUT_NODE_VAR, nn_config.FC1_HIDDEN],
                                           regularizer=regularizer)
@@ -183,17 +187,20 @@ def lstm_train_hybrid(data1, data2, label):
     # 定义损失函数、学习率、滑动平均操作以及训练过程。
     variable_averages = tf.train.ExponentialMovingAverage(nn_config.MOVING_AVERAGE_DECAY, global_step)
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
-    cross_entropy_mean = tf.reduce_sum(tf.square(y_ - y)) / nn_config.BATCH_SIZE
-    loss = cross_entropy_mean + tf.add_n(tf.get_collection('losses'))
+    cost = tf.reduce_sum(tf.square(y_ - y)) / nn_config.BATCH_SIZE
+    loss = cost + tf.add_n(tf.get_collection('losses'))
     train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss, global_step=global_step)
     with tf.control_dependencies([train_step, variables_averages_op]):
         train_op = tf.no_op(name='train')
+
     # 生成batch的数据配置
-    input_queue = tf.train.slice_input_producer([data, label])
-    label = input_queue[1]
-    image = input_queue[0]  # read img from a queue
-    train_datas1, train_datas2, train_label = tf.train.shuffle_batch([x_train, x_train2, y_train],
-                                                                     batch_size=batch_size,
+    input_queue = tf.train.slice_input_producer([x_train, x_train2, y_train])
+    lstm_data = input_queue[0]
+    hybrid_data = input_queue[1]
+    label_data = input_queue[2]
+
+    train_datas1, train_datas2, train_label = tf.train.shuffle_batch([lstm_data, hybrid_data, label_data],
+                                                                     batch_size=nn_config.BATCH_SIZE,
                                                                      num_threads=32,
                                                                      capacity=nn_config.QUEUE_CAPACITY,
                                                                      min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
@@ -219,7 +226,7 @@ def lstm_train_hybrid(data1, data2, label):
         coord.join(threads)
         saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
         print("Optimization Finished!")
-        # test
+        # 测试集数据验证
         global prediction
         test_datas1 = x_test.reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
         test_datas2 = x_test2.reshape(-1, nn_config.INPUT_NODE_VAR)
@@ -304,7 +311,7 @@ if __name__ == '__main__':
     lstm_train_hybrid(data_, merged_data[nn_config.TIME_STEPS - 1:-1, :], label_)
     # train_hybrid(data_, label_)
 
-    # x_train, x_test, y_train, y_test = train_test_split(data, label, test_size=0.2)
+    # 训练程序结束，开始画图可视化
     plt.plot(y_test[:288], color="blue", linewidth=1, linestyle="-", label="real")
     plt.plot(prediction[:288], color="red", linewidth=1, linestyle="-", label="simulation")
     plt.xlabel('Time (per 5 min)')

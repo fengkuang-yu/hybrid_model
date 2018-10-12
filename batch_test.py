@@ -14,14 +14,16 @@ import tensorflow as tf
 ...
 
 if __name__ == '__main__':
-    data = np.array([x for x in range(1, 101)]).reshape(10, 10)
+    data1 = np.array([x for x in range(1, 101)]).reshape(10, 10)
+    data2 = np.array([x for x in range(101, 201)]).reshape(10, 10)
     label = np.array([x for x in range(1, 11)]).reshape(10, 1)
     batch_size = 3
     capacity = 100 + 3 * batch_size
-    input_queue = tf.train.slice_input_producer([data, label])
+    input_queue = tf.train.slice_input_producer([data1, data2, label])
     label = input_queue[1]
-    image = input_queue[0]  # read img from a queue
-    image_batch, label_batch = tf.train.shuffle_batch([image, label],
+    image1 = input_queue[0]  # read img from a queue
+    image2 = input_queue[2]
+    image1_batch, image2_batch, label_batch = tf.train.shuffle_batch([image1, image2, label],
                                                       batch_size=batch_size,
                                                       num_threads=32,
                                                       capacity=capacity,
@@ -36,7 +38,7 @@ if __name__ == '__main__':
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         for i in range(2):
-            cur_example_batch, cur_label_batch = sess.run([image_batch, label_batch])
-            print(cur_example_batch, cur_label_batch)
+            cur_data1_batch, cur_data2_batch, cur_label_batch = sess.run([image1_batch, image2_batch, label_batch])
+            print(cur_data1_batch, cur_data2_batch, cur_label_batch)
         coord.request_stop()
         coord.join(threads)
