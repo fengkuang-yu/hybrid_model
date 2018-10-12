@@ -9,10 +9,9 @@
 """
 
 import os
-
 import tensorflow as tf
+import scipy.io as sio
 from sklearn.model_selection import train_test_split
-
 from data_processor import *
 
 
@@ -30,10 +29,10 @@ class LstmConfig(object):
     LEARNING_RATE_BASE = 1e-4  # 初始学习率
     LEARNING_RATE_DECAY = 0.99  # 衰减
     REGULARIZATION_RATE = 1e-4  # 正则化系数
-    TRAINING_STEPS = 50000  # 迭代次数
+    TRAINING_STEPS = 25000  # 迭代次数
     DISP_PER_TIMES = 1000  # 间隔多少次显示预测效果
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
-    QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
+    QUEUE_CAPACITY = 10000 + BATCH_SIZE * 3
     MIN_AFTER_DEQUEUE = 5000
     EPOCHS = 150
     MODEL_SAVE_PATH = r"D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver"
@@ -145,7 +144,7 @@ def lstm_train_hybrid(data1, data2, label):
     x_1 = tf.placeholder(tf.float32, [None, nn_config.TIME_STEPS * nn_config.SPACE_STEPS], name='x-input1')
     x_2 = tf.placeholder(tf.float32, [None, nn_config.INPUT_NODE_VAR], name='x-input2')
     y_ = tf.placeholder(tf.float32, [None, nn_config.OUTPUT_NODE], name='y-input')
-    regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE) #  使用L2正则化
+    regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE)  # 使用L2正则化
     input_tensor_image = tf.reshape(x_1, [-1, nn_config.TIME_STEPS, nn_config.SPACE_STEPS])
 
     # 标准的LSTM模块
@@ -155,6 +154,7 @@ def lstm_train_hybrid(data1, data2, label):
                                                     state_is_tuple=True,
                                                     reuse=tf.get_variable_scope().reuse)
         return lstm_fw_cell
+
     with tf.variable_scope(None, default_name="Rnn1"):
         cell = tf.contrib.rnn.MultiRNNCell([lstm() for _ in range(nn_config.STACKED_LAYERS)], state_is_tuple=True)
         output, _ = tf.nn.dynamic_rnn(cell, input_tensor_image, dtype=tf.float32)
@@ -182,12 +182,11 @@ def lstm_train_hybrid(data1, data2, label):
         fc3_biases = get_bais_variable([nn_config.OUTPUT_NODE])
         y = tf.matmul(fc2, fc3_weights) + fc3_biases
 
-    global_step = tf.Variable(0, trainable=False)
-
     # 定义损失函数、学习率、滑动平均操作以及训练过程。
+    global_step = tf.Variable(0, trainable=False)
     variable_averages = tf.train.ExponentialMovingAverage(nn_config.MOVING_AVERAGE_DECAY, global_step)
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
-    cost = tf.reduce_sum(tf.square(y_ - y)) / nn_config.BATCH_SIZE
+    cost = tf.reduce_sum(tf.abs(y_ - y)) / nn_config.BATCH_SIZE
     loss = cost + tf.add_n(tf.get_collection('losses'))
     train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss, global_step=global_step)
     with tf.control_dependencies([train_step, variables_averages_op]):
@@ -220,7 +219,7 @@ def lstm_train_hybrid(data1, data2, label):
                                                       x_2: cur_hybird_data,
                                                       y_: cur_label})
 
-            if i % nn_config.DISP_PER_TIMES == 0:
+            if i % nn_config.DISP_PER_TIMES == 0:  # 每隔多少次显示一次计算结果
                 print("After %d training step(s), loss on training batch is %g." % (step, loss_value))
         coord.request_stop()
         coord.join(threads)
@@ -302,9 +301,6 @@ if __name__ == '__main__':
     file_config = DataProcessConfig()
     merged_data = merge_data(file_config)
 
-    plt.plot(merged_data[0:288, :4])
-    plt.show()
-
     # 仅使用流量作为输入
     data_ = data_pro(merged_data[:, nn_config.WHITCH_FEATURE], nn_config.TIME_STEPS, True)
     label_ = merged_data[nn_config.TIME_STEPS:, 1]
@@ -332,3 +328,4 @@ if __name__ == '__main__':
     plt.ylabel('Totle traffic flow (vehicles)')
     plt.legend(loc='upper right')
     plt.show()
+    sio.savemat('prediction_lstm_hybrid', {'pred': prediction})

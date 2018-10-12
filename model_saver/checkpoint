@@ -1,2 +1,2 @@
-model_checkpoint_path: "D:\\Users\\yyh\\Pycharm_workspace\\hybrid_model\\model_saver\\model-50000"
-all_model_checkpoint_paths: "D:\\Users\\yyh\\Pycharm_workspace\\hybrid_model\\model_saver\\model-50000"
+model_checkpoint_path: "D:\\Users\\yyh\\Pycharm_workspace\\hybrid_model\\model_saver\\model-25000"
+all_model_checkpoint_paths: "D:\\Users\\yyh\\Pycharm_workspace\\hybrid_model\\model_saver\\model-25000"

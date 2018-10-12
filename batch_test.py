@@ -10,35 +10,19 @@
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pylab as plt
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
-...
-
-if __name__ == '__main__':
-    data1 = np.array([x for x in range(1, 101)]).reshape(10, 10)
-    data2 = np.array([x for x in range(101, 201)]).reshape(10, 10)
-    label = np.array([x for x in range(1, 11)]).reshape(10, 1)
-    batch_size = 3
-    capacity = 100 + 3 * batch_size
-    input_queue = tf.train.slice_input_producer([data1, data2, label])
-    label = input_queue[1]
-    image1 = input_queue[0]  # read img from a queue
-    image2 = input_queue[2]
-    image1_batch, image2_batch, label_batch = tf.train.shuffle_batch([image1, image2, label],
-                                                      batch_size=batch_size,
-                                                      num_threads=32,
-                                                      capacity=capacity,
-                                                      min_after_dequeue=50,
-                                                      allow_smaller_final_batch=True)
-    # 重新排列label，行数为[batch_size]
-    # label_batch = tf.reshape(label_batch, [batch_size])
-    # image_batch = tf.cast(image_batch, tf.float32)
-
-    with tf.Session() as sess:
-        tf.global_variables_initializer().run()
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        for i in range(2):
-            cur_data1_batch, cur_data2_batch, cur_label_batch = sess.run([image1_batch, image2_batch, label_batch])
-            print(cur_data1_batch, cur_data2_batch, cur_label_batch)
-        coord.request_stop()
-        coord.join(threads)
+a = np.array([69,69,51,84,57,51,45,45,60,36,30,33,36,45,30,21,24,24,30,24,30,30,36,27,30,33,33,18,21,21,18,21,
+              21,24,18,27,27,33,21,30,36,42,27,36,36,36,36,30,39,33,36,42,63,57,87,78,81,93,96,69,90,111,96,123,
+              159,174,177,195,177,201,192,177,189,207,204,207,234,234,285,270,282,297,282,306,282,303,291,321,315,
+              294,312,327,330,324,309,285,303,285,285,315,321,297,339,297,336,288,327,312,303,276,318,291,303,279,
+              312,315,315,291,258,318,297,309,273,282,294,309,300,312,285,306,324,279,294,297,321,315,330,339,258,
+              342,348,345,315,318,303,339,333,354,366,345,327,357,342,357,366,327,375,363,336,405,381,336,342,363,
+              390,396,363,360,375,381,381,378,381,342,387,405,438,387,381,369,381,387,393,375,357,348,351,396,354,
+              393,369,339,375,372,324,333,321,369,354,339,366,351,330,315,294,285,300,315,336,330,357,324,351,333,
+              276,276,297,291,303,297,285,315,327,300,282,273,303,300,294,321,315,309,294,285,306,309,303,285,255,
+              258,258,252,273,264,249,219,246,252,246,240,237,210,249,237,240,285,231,207,213,222,198,189,177,162,
+              180,180,171,165,171,144,141,156,126,108,129,87,105,120,111,108,123,108,84,111,72,87,87,96])
+plt.plot(a)
+lowess()
