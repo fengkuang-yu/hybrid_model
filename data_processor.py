@@ -167,7 +167,7 @@ def merge_data(file_config=None):
     :param file_config: 数据集中的参数
     :return: 返回做好的数据集
     """
-    global speed_demo, flow_demo
+    global speed_demo, flow_demo, smoothed_flow, smoothed_speed
     flow_data = pd.read_csv(file_config.FLOW_DIR, index_col='Datetime \ Milepost')
     speed_data = pd.read_csv(file_config.SPEED_DIR, index_col='Datetime \ Milepost')
 
@@ -224,20 +224,21 @@ if __name__ == '__main__':
         plt.rcParams['figure.dpi'] = 300  # 分辨率
         plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=1)
         plt.ylabel('The magnitude of normalized data')
-        plt.xlabel('Time(h)')
+        plt.xlabel('Time')
         plt.savefig('Data/figures/without_bolck.png')
         plt.show()
 
 
     # 发生拥塞时的四种关系17,18
-    def blocking(disp_day=20):
+    def blocking(disp_day=20, file_config=None):
         """
         画图程序，画出拥塞时的图
         :param disp_day:
         :return:
         """
-        file_config = DataProcessConfig()
-        file_config.flow_frac_param = 0.06
+        # file_config = DataProcessConfig()
+        file_config.flow_frac_param = 0.03
+        file_config.speed_frac_param = 0.03
         file_config.var_calc_step = 12
         file_config.disp_day = disp_day
         disp_seg = [x for x in range(288 * (file_config.disp_day - 1) - file_config.var_calc_step,
@@ -259,10 +260,21 @@ if __name__ == '__main__':
         plt.rcParams['figure.dpi'] = 300  # 分辨率
         plt.legend(['speed', 'flow', 'flow variance', 'speed variance'], loc=4)
         plt.ylabel('The magnitude of normalized data')
-        plt.xlabel('Time(h)')
+        plt.xlabel('Time')
         plt.show()
         plt.savefig('Data/figures/with_bolck.png')
 
-
-
-    blocking(18)
+    # fileConfig = DataProcessConfig()
+    # fileConfig.speed_frac_param = 0.05
+    # fileConfig.flow_frac_param = 0.05
+    # fileConfig.var_calc_step = 16
+    # disp_day = 24
+    # blocking(disp_day, fileConfig)
+    # disp_seg = [x for x in range(288 * (disp_day - 1) - fileConfig.var_calc_step,
+    #                              288 * fileConfig.disp_day - fileConfig.var_calc_step)]
+    # plt.plot(flow_demo[disp_seg])
+    # plt.plot(smoothed_flow[disp_seg])
+    # plt.show()
+    # plt.plot(speed_demo[disp_seg])
+    # plt.plot(smoothed_speed[disp_seg])
+    # plt.show()
