@@ -38,7 +38,10 @@ class DataProcessConfig(object):
     speed_frac_param = 0.05  # 用于平滑速度的参数
     var_calc_step = 2  # 使用之前多长的时滞来计算当前的方差
     slide_slect = True  # 构造数据是否使用滑动选取数据
-    data_select = ['20.93']  # 仿真使用的数据是哪个路口的
+    data_select = ['17.23', '17.99', '18.7', '19.21', '19.71',
+                   '20.22', '20.93', '21.36', '21.83', '22.31',
+                   '22.73', '23.51', '23.93']  # 仿真使用的数据是哪个路口的
+    label_select = ['20.93']  # 预测流量是使用的哪个路口
     disp_day = 2  # 画图展示的日期
 
 
@@ -167,30 +170,32 @@ def merge_data(file_config=None):
     :param file_config: 数据集中的参数
     :return: 返回做好的数据集
     """
-    global speed_demo, flow_demo, smoothed_flow, smoothed_speed
     flow_data = pd.read_csv(file_config.FLOW_DIR, index_col='Datetime \ Milepost')
     speed_data = pd.read_csv(file_config.SPEED_DIR, index_col='Datetime \ Milepost')
 
     flow_demo = np.array(flow_data[file_config.data_select], dtype=float)
     speed_demo = np.array(speed_data[file_config.data_select], dtype=float)
+    flow_label = np.array(flow_data[file_config.label_select], dtype=float)
+    speed_label = np.array(speed_data[file_config.label_select], dtype=float)
 
-    smoothed_flow = smooth_data(flow_demo, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
-    flow_demo_var = var_calc(flow_demo, smoothed_flow, calc_step=file_config.var_calc_step)
-    smoothed_speed = smooth_data(speed_demo, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
-    speed_demo_var = var_calc(speed_demo, smoothed_speed, calc_step=file_config.var_calc_step)
+    smoothed_flow = smooth_data(flow_label, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
+    flow_demo_var = var_calc(flow_label, smoothed_flow, calc_step=file_config.var_calc_step)
+    smoothed_speed = smooth_data(speed_label, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
+    speed_demo_var = var_calc(speed_label, smoothed_speed, calc_step=file_config.var_calc_step)
     flow_demo_var = normal_data(flow_demo_var)
     speed_demo_var = normal_data(speed_demo_var)
     flow_demo_var = flow_demo_var.clip(0, 0.5) * 2  # 除去流量的奇异值
     speed_demo_var = speed_demo_var.clip(0, 0.5) * 2  # 除去速度的奇异值
-    merge_data = np.concatenate([speed_demo,
+    lstm_data = np.concatenate([speed_demo, flow_demo], axis=1)
+    hybrid_data= np.concatenate([speed_demo,
                                  flow_demo,
                                  flow_demo_var,
                                  speed_demo_var,
                                  smoothed_flow,
                                  smoothed_speed], axis=1)
-    norm_data = normal_data(merge_data)
-    norm_data = norm_data[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
-    return norm_data
+    lstm_norm_data = normal_data(lstm_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
+    hybrid_norm_data = normal_data(hybrid_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
+    return lstm_norm_data, hybrid_norm_data, flow_label
 
 
 def plot_one_day(data1, data2, y_label='Traffic flow(Vehicles)', x_label='Time', legend=None):

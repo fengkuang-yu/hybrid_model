@@ -9,19 +9,16 @@
 """
 
 import os
-
 import scipy.io as sio
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
-
 from data_processor import *
 
 
 class LstmConfig(object):
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
-    SPACE_STEPS = 1  # LSTM输入图片的空间维度
-    WHITCH_FEATURE = [1]  # LSTM神经网络的输入数据
+    SPACE_STEPS = 26  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
     HIDDEN_NODE = 128  # LSTM隐含层的神经元个数
     STACKED_LAYERS = 2  # LSTM堆叠层数
@@ -302,13 +299,17 @@ def cnn_train(data, label):
 if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
-    merged_data = merge_data(file_config)
+    lstm_data, hybrid_data, flow_label = merge_data(file_config)
+    flow_label = normal_data(flow_label)
 
     # 仅使用流量作为输入
-    data_ = data_pro(merged_data[:, nn_config.WHITCH_FEATURE], nn_config.TIME_STEPS, True)
-    label_ = merged_data[nn_config.TIME_STEPS:, 1]
-    # lstm_train_hybrid(data_, merged_data[nn_config.TIME_STEPS - 1:-1, :], label_)
-    lstm_train(data_, label_)
+    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)
+    hybrid_input = hybrid_data[nn_config.TIME_STEPS - 1:-1, :]
+    label_ = flow_label[nn_config.TIME_STEPS: -1]  # 构造训练测试数据
+
+    # 将处理好的数据加入神经网络训练
+    # lstm_train_hybrid(lstm_input, hybrid_input, label_)
+    lstm_train(lstm_input, label_)
 
     # 训练程序结束，开始画图可视化
     plt.plot(y_test[:288], color="blue", linewidth=1, linestyle="-", label="real")
