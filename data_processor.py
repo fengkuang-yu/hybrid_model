@@ -195,6 +195,7 @@ def merge_data(file_config=None):
                                  smoothed_speed], axis=1)
     lstm_norm_data = normal_data(lstm_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
     hybrid_norm_data = normal_data(hybrid_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
+    flow_label = flow_label[file_config.var_calc_step:, :]
     return lstm_norm_data, hybrid_norm_data, flow_label
 
 

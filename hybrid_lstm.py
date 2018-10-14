@@ -35,7 +35,7 @@ class LstmConfig(object):
     MIN_AFTER_DEQUEUE = 5000
     EPOCHS = 150
     MODEL_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver'
-    RESULT_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\prediction_result'
+    RESULT_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result'
     MODEL_NAME = 'model'
 
 
@@ -305,11 +305,13 @@ if __name__ == '__main__':
     # 仅使用流量作为输入
     lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)
     hybrid_input = hybrid_data[nn_config.TIME_STEPS - 1:-1, :]
-    label_ = flow_label[nn_config.TIME_STEPS: -1]  # 构造训练测试数据
+    label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
     # lstm_train_hybrid(lstm_input, hybrid_input, label_)
     lstm_train(lstm_input, label_)
+
+
 
     # 训练程序结束，开始画图可视化
     plt.plot(y_test[:288], color="blue", linewidth=1, linestyle="-", label="real")
@@ -322,14 +324,14 @@ if __name__ == '__main__':
     mape = sum(d / y_test) / y_test.shape[0]
     mae = sum(d) / y_test.shape[0]
     print('MAPE=', mape, '\nMAE=', mae)
-
-    x_train2, x_test2, y_train2, y_test2 = train_test_split(merged_data[nn_config.TIME_STEPS - 1:-1, :], label_,
-                                                            test_size=0.2, shuffle=False)
-    plt.plot(x_test2[1:289, 4], color="blue", linewidth=1, linestyle="-", label="smooth")
-    plt.plot(y_test[:288], color="green", linewidth=1, linestyle="-", label="real")
-    plt.plot(prediction[:288], color="red", linewidth=1, linestyle="-", label="simulation")
-    plt.xlabel('Time (per 5 min)')
-    plt.ylabel('Totle traffic flow (vehicles)')
-    plt.legend(loc='upper right')
-    plt.show()
-    sio.savemat(os.path.join(nn_config.RESULT_SAVE_PATH, 'prediction_lstm'), {'pred': prediction})
+    #
+    # x_train2, x_test2, y_train2, y_test2 = train_test_split(merged_data[nn_config.TIME_STEPS - 1:-1, :], label_,
+    #                                                         test_size=0.2, shuffle=False)
+    # plt.plot(x_test2[1:289, 4], color="blue", linewidth=1, linestyle="-", label="smooth")
+    # plt.plot(y_test[:288], color="green", linewidth=1, linestyle="-", label="real")
+    # plt.plot(prediction[:288], color="red", linewidth=1, linestyle="-", label="simulation")
+    # plt.xlabel('Time (per 5 min)')
+    # plt.ylabel('Totle traffic flow (vehicles)')
+    # plt.legend(loc='upper right')
+    # plt.show()
+    # sio.savemat(os.path.join(nn_config.RESULT_SAVE_PATH, 'prediction_lstm'), {'pred': prediction})
