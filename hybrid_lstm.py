@@ -9,17 +9,19 @@
 """
 
 import os
-import tensorflow as tf
+
 import scipy.io as sio
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
+
 from data_processor import *
 
 
 class LstmConfig(object):
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
-    SPACE_STEPS = 2  # LSTM输入图片的空间维度
-    WHITCH_FEATURE = [0, 1]  # LSTM神经网络的输入数据
+    SPACE_STEPS = 1  # LSTM输入图片的空间维度
+    WHITCH_FEATURE = [1]  # LSTM神经网络的输入数据
     OUTPUT_NODE = 1  # 输出节点个数
     HIDDEN_NODE = 128  # LSTM隐含层的神经元个数
     STACKED_LAYERS = 2  # LSTM堆叠层数
@@ -35,8 +37,9 @@ class LstmConfig(object):
     QUEUE_CAPACITY = 10000 + BATCH_SIZE * 3
     MIN_AFTER_DEQUEUE = 5000
     EPOCHS = 150
-    MODEL_SAVE_PATH = r"D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver"
-    MODEL_NAME = "model"
+    MODEL_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver'
+    RESULT_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\prediction_result'
+    MODEL_NAME = 'model'
 
 
 def get_weight_variable(shape, regularizer=None):
@@ -304,8 +307,8 @@ if __name__ == '__main__':
     # 仅使用流量作为输入
     data_ = data_pro(merged_data[:, nn_config.WHITCH_FEATURE], nn_config.TIME_STEPS, True)
     label_ = merged_data[nn_config.TIME_STEPS:, 1]
-    lstm_train_hybrid(data_, merged_data[nn_config.TIME_STEPS - 1:-1, :], label_)
-    # train_hybrid(data_, label_)
+    # lstm_train_hybrid(data_, merged_data[nn_config.TIME_STEPS - 1:-1, :], label_)
+    lstm_train(data_, label_)
 
     # 训练程序结束，开始画图可视化
     plt.plot(y_test[:288], color="blue", linewidth=1, linestyle="-", label="real")
@@ -328,4 +331,4 @@ if __name__ == '__main__':
     plt.ylabel('Totle traffic flow (vehicles)')
     plt.legend(loc='upper right')
     plt.show()
-    sio.savemat('prediction_lstm_hybrid', {'pred': prediction})
+    sio.savemat(os.path.join(nn_config.RESULT_SAVE_PATH, 'prediction_lstm'), {'pred': prediction})

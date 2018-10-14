@@ -6,6 +6,7 @@ Created on Sun Sep 16 20:41:46 2018
 """
 
 import datetime
+
 import matplotlib.pylab as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -190,6 +191,41 @@ def merge_data(file_config=None):
     norm_data = normal_data(merge_data)
     norm_data = norm_data[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
     return norm_data
+
+
+def plot_one_day(data1, data2, y_label='Traffic flow(Vehicles)', x_label='Time', legend=None):
+    """
+    画出图
+    :param data1: 真实数据
+    :param data2: 仿真数据
+    :param y_label: y轴的坐标
+    :param x_label: x轴的坐标
+    :param legend: 图例
+    :return: 无
+    """
+    formatter = DateFormatter('%H:%M')  # 时间表现形式，这里只显示了时分
+    d1 = datetime.datetime(2018, 2, 10, 0, 0, 0)
+    d2 = datetime.datetime(2018, 2, 11, 0, 0, 0)
+    delta = datetime.timedelta(minutes=5)  # 以0.5秒为间隔生成时间序列
+    x = drange(d1, d2, delta)
+    y1 = data1
+    y2 = data2
+    fig1, ax1 = plt.subplots()
+    plt.plot(x, y1)
+    plt.plot(x, y2)
+    ax1.xaxis.set_major_formatter(formatter)
+    tick_spacing = 1 / 6
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+    ax1.xaxis.set_tick_params(rotation=0, labelsize=10)
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    if legend is None:
+        plt.legend(['real traffic flow', 'simulation result'], loc=1)
+    else:
+        plt.legend(legend)
+    plt.ylabel(y_label)
+    plt.xlabel(x_label)
+    plt.show()
 
 
 if __name__ == '__main__':
