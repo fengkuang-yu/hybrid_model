@@ -90,6 +90,25 @@ sio.savemat(r'D:\桌面\speed_data_param=0.10', {'smooth_speed': np.array(smooth
 
 
 
+
+
+
+
+
+
+
+a = np.array([1,2,3])
+b = np.array([2,4,6])
+print(b/a)
+
+
+
+
+
+
+
+
+
 plt.plot(data[-1-288:])
 plt.plot(smooth_data[-1-288:])
 # 使用整体的平滑结果

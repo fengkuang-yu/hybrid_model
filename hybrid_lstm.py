@@ -299,8 +299,8 @@ def cnn_train(data, label):
 if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
-    lstm_data, hybrid_data, flow_label = merge_data(file_config)
-    flow_label = normal_data(flow_label)
+    lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
+    flow_label = normal_data(flow_label_real)
 
     # 仅使用流量作为输入
     lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-1,:]
@@ -308,21 +308,26 @@ if __name__ == '__main__':
     label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
-    lstm_train_hybrid(lstm_input, hybrid_input, label_)
-    # lstm_train(lstm_input, label_)
+    # lstm_train_hybrid(lstm_input, hybrid_input, label_)
+    lstm_train(lstm_input, label_)
 
-
+    # 还原数据
+    normal_data_min = flow_label_real.min(axis=0)
+    normal_data_gap = flow_label_real.max(axis=0) - flow_label_real.min(axis=0)
+    flow_test_real = y_test * normal_data_gap + normal_data_min
+    prediction_real = prediction * normal_data_gap + normal_data_min
 
     # 训练程序结束，开始画图可视化
-    plt.plot(y_test[:288], color="blue", linewidth=1, linestyle="-", label="real")
-    plt.plot(prediction[:288], color="red", linewidth=1, linestyle="-", label="simulation")
+    plt.plot(flow_test_real[:288], color="blue", linewidth=1, linestyle="-", label="real")
+    plt.plot(prediction_real[:288], color="red", linewidth=1, linestyle="-", label="simulation")
     plt.xlabel('Time (per 5 min)')
     plt.ylabel('Totle traffic flow (vehicles)')
     plt.legend(loc='upper right')
     plt.show()
-    d = abs(y_test - prediction.flatten())
-    mape = sum(d / y_test) / y_test.shape[0]
-    mae = sum(d) / y_test.shape[0]
+
+    d = abs(flow_test_real - prediction_real.flatten())
+    mape = sum(d / prediction_real.flatten()) / prediction_real.shape[0]
+    mae = sum(d) / prediction_real.shape[0]
     print('MAPE=', mape, '\nMAE=', mae)
     #
     # x_train2, x_test2, y_train2, y_test2 = train_test_split(merged_data[nn_config.TIME_STEPS - 1:-1, :], label_,
