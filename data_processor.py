@@ -11,6 +11,7 @@ import matplotlib.pylab as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 from matplotlib.dates import DateFormatter, drange
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
@@ -36,7 +37,7 @@ class DataProcessConfig(object):
     SPEED_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_59.csv'
     flow_frac_param = 0.05  # 用于平滑流量的参数
     speed_frac_param = 0.05  # 用于平滑速度的参数
-    var_calc_step = 2  # 使用之前多长的时滞来计算当前的方差
+    var_calc_step = 12  # 使用之前多长的时滞来计算当前的方差
     slide_slect = True  # 构造数据是否使用滑动选取数据
     data_select = ['17.23', '17.99', '18.7', '19.21', '19.71',
                    '20.22', '20.93', '21.36', '21.83', '22.31',
@@ -76,8 +77,8 @@ def data_pro(data, time_steps=None, slide_sep=True):
         # 如果输入的数据是矩阵形式的
     if isinstance(data, np.ndarray):
         if slide_sep is True:
-            temp = np.zeros((size[0] - time_steps, size[1] * time_steps))
-            for i in range(data.shape[0] - time_steps):
+            temp = np.zeros((size[0] - time_steps + 1, size[1] * time_steps))
+            for i in range(data.shape[0] - time_steps + 1):
                 temp[i, :] = data[i:i + time_steps, :].flatten()
             return temp
         else:
@@ -173,26 +174,30 @@ def merge_data(file_config=None):
     flow_data = pd.read_csv(file_config.FLOW_DIR, index_col='Datetime \ Milepost')
     speed_data = pd.read_csv(file_config.SPEED_DIR, index_col='Datetime \ Milepost')
 
-    flow_demo = np.array(flow_data[file_config.data_select], dtype=float)
-    speed_demo = np.array(speed_data[file_config.data_select], dtype=float)
-    flow_label = np.array(flow_data[file_config.label_select], dtype=float)
-    speed_label = np.array(speed_data[file_config.label_select], dtype=float)
+    flow_demo = np.array(flow_data[file_config.data_select], dtype=float)[288:, :]
+    speed_demo = np.array(speed_data[file_config.data_select], dtype=float)[288:, :]
+    flow_label = np.array(flow_data[file_config.label_select], dtype=float)[288:, :]
+    speed_label = np.array(speed_data[file_config.label_select], dtype=float)[288:, :]
 
-    smoothed_flow = smooth_data(flow_label, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
+    # smoothed_flow = smooth_data(flow_label, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
+    smoothed_flow = sio.loadmat(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_param=0.10.mat')[
+        'smooth_flow'][:, 1:].reshape(-1, 1)
     flow_demo_var = var_calc(flow_label, smoothed_flow, calc_step=file_config.var_calc_step)
-    smoothed_speed = smooth_data(speed_label, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
+    smoothed_speed = sio.loadmat(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_param=0.10.mat')[
+        'smooth_speed'][:, 1:].reshape(-1, 1)
+    # smoothed_speed = smooth_data(speed_label, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
     speed_demo_var = var_calc(speed_label, smoothed_speed, calc_step=file_config.var_calc_step)
     flow_demo_var = normal_data(flow_demo_var)
     speed_demo_var = normal_data(speed_demo_var)
     flow_demo_var = flow_demo_var.clip(0, 0.5) * 2  # 除去流量的奇异值
     speed_demo_var = speed_demo_var.clip(0, 0.5) * 2  # 除去速度的奇异值
     lstm_data = np.concatenate([speed_demo, flow_demo], axis=1)
-    hybrid_data= np.concatenate([speed_demo,
-                                 flow_demo,
-                                 flow_demo_var,
-                                 speed_demo_var,
-                                 smoothed_flow,
-                                 smoothed_speed], axis=1)
+    hybrid_data = np.concatenate([speed_demo,
+                                  flow_demo,
+                                  flow_demo_var[1:,:].reshape(-1, 1),
+                                  speed_demo_var[1:,:].reshape(-1, 1),
+                                  smoothed_flow,
+                                  smoothed_speed], axis=1)
     lstm_norm_data = normal_data(lstm_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
     hybrid_norm_data = normal_data(hybrid_data)[file_config.var_calc_step:, :]  # 去除用于计算方差的那一部分
     flow_label = flow_label[file_config.var_calc_step:, :]

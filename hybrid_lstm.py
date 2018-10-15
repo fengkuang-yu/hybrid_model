@@ -16,7 +16,7 @@ from data_processor import *
 
 
 class LstmConfig(object):
-    INPUT_NODE_VAR = 6  # 手动提取特征的数量
+    INPUT_NODE_VAR = 30  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
     SPACE_STEPS = 26  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
@@ -186,7 +186,7 @@ def lstm_train_hybrid(data1, data2, label):
     global_step = tf.Variable(0, trainable=False)
     variable_averages = tf.train.ExponentialMovingAverage(nn_config.MOVING_AVERAGE_DECAY, global_step)
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
-    cost = tf.reduce_sum(tf.abs(y_ - y)) / nn_config.BATCH_SIZE
+    cost = tf.reduce_sum(tf.square(y_ - y)) / nn_config.BATCH_SIZE
     loss = cost + tf.add_n(tf.get_collection('losses'))
     train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss, global_step=global_step)
     with tf.control_dependencies([train_step, variables_averages_op]):
@@ -303,13 +303,13 @@ if __name__ == '__main__':
     flow_label = normal_data(flow_label)
 
     # 仅使用流量作为输入
-    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)
+    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-1,:]
     hybrid_input = hybrid_data[nn_config.TIME_STEPS - 1:-1, :]
     label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
-    # lstm_train_hybrid(lstm_input, hybrid_input, label_)
-    lstm_train(lstm_input, label_)
+    lstm_train_hybrid(lstm_input, hybrid_input, label_)
+    # lstm_train(lstm_input, label_)
 
 
 
