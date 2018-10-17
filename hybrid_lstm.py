@@ -16,9 +16,9 @@ from data_processor import *
 
 
 class LstmConfig(object):
-    INPUT_NODE_VAR = 30  # 手动提取特征的数量
+    INPUT_NODE_VAR = 28  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
-    SPACE_STEPS = 26  # LSTM输入图片的空间维度
+    SPACE_STEPS = 24  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
     HIDDEN_NODE = 128  # LSTM隐含层的神经元个数
     STACKED_LAYERS = 2  # LSTM堆叠层数
@@ -308,8 +308,8 @@ if __name__ == '__main__':
     label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
-    # lstm_train_hybrid(lstm_input, hybrid_input, label_)
-    lstm_train(lstm_input, label_)
+    lstm_train_hybrid(lstm_input, hybrid_input, label_)
+    # lstm_train(lstm_input, label_)
 
     # 还原数据
     normal_data_min = flow_label_real.min(axis=0)
@@ -318,25 +318,11 @@ if __name__ == '__main__':
     prediction_real = prediction * normal_data_gap + normal_data_min
 
     # 训练程序结束，开始画图可视化
-    plt.plot(flow_test_real[:288], color="blue", linewidth=1, linestyle="-", label="real")
-    plt.plot(prediction_real[:288], color="red", linewidth=1, linestyle="-", label="simulation")
-    plt.xlabel('Time (per 5 min)')
-    plt.ylabel('Totle traffic flow (vehicles)')
-    plt.legend(loc='upper right')
-    plt.show()
-
+    plot_one_day(flow_test_real[-1-287:], prediction_real[-1-287:])
     d = abs(flow_test_real - prediction_real.flatten())
     mape = sum(d / prediction_real.flatten()) / prediction_real.shape[0]
     mae = sum(d) / prediction_real.shape[0]
     print('MAPE=', mape, '\nMAE=', mae)
-    #
-    # x_train2, x_test2, y_train2, y_test2 = train_test_split(merged_data[nn_config.TIME_STEPS - 1:-1, :], label_,
-    #                                                         test_size=0.2, shuffle=False)
-    # plt.plot(x_test2[1:289, 4], color="blue", linewidth=1, linestyle="-", label="smooth")
-    # plt.plot(y_test[:288], color="green", linewidth=1, linestyle="-", label="real")
-    # plt.plot(prediction[:288], color="red", linewidth=1, linestyle="-", label="simulation")
-    # plt.xlabel('Time (per 5 min)')
-    # plt.ylabel('Totle traffic flow (vehicles)')
-    # plt.legend(loc='upper right')
-    # plt.show()
-    # sio.savemat(os.path.join(nn_config.RESULT_SAVE_PATH, 'prediction_lstm'), {'pred': prediction})
+
+    # 数据的保存
+    sio.savemat(r'D:\桌面\prediction_lstm', {'pred': prediction_real})

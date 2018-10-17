@@ -35,14 +35,15 @@ class DataProcessConfig(object):
     """
     FLOW_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv'
     SPEED_DIR = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_59.csv'
+    smoothed_flow_data_dir = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_param=0.10.mat'
+    smoothed_speed_data_dir = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_param=0.10.mat'
     flow_frac_param = 0.05  # 用于平滑流量的参数
     speed_frac_param = 0.05  # 用于平滑速度的参数
     var_calc_step = 12  # 使用之前多长的时滞来计算当前的方差
     slide_slect = True  # 构造数据是否使用滑动选取数据
-    data_select = ['17.23', '17.99', '18.7', '19.21', '19.71',
-                   '20.22', '20.93', '21.36', '21.83', '22.31',
-                   '22.73', '23.51', '23.93']  # 仿真使用的数据是哪个路口的
-    label_select = ['20.93']  # 预测流量是使用的哪个路口
+    data_select = ['15.08', '15.63', '16.12', '16.67', '17.23', '17.99',
+                   '18.7', '19.21', '19.71', '20.22', '20.93', '21.36']  # 仿真使用的数据是哪个路口的
+    label_select = ['17.99']  # 预测流量是使用的哪个路口
     disp_day = 2  # 画图展示的日期
 
 
@@ -180,10 +181,10 @@ def merge_data(file_config=None):
     speed_label = np.array(speed_data[file_config.label_select], dtype=float)[288:, :]
 
     # smoothed_flow = smooth_data(flow_label, frac_param=file_config.flow_frac_param / (len(flow_demo) / 288))
-    smoothed_flow = sio.loadmat(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_param=0.10.mat')[
+    smoothed_flow = sio.loadmat(file_config.smoothed_flow_data_dir)[
         'smooth_flow'][:, 1:].reshape(-1, 1)
     flow_demo_var = var_calc(flow_label, smoothed_flow, calc_step=file_config.var_calc_step)
-    smoothed_speed = sio.loadmat(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_param=0.10.mat')[
+    smoothed_speed = sio.loadmat(file_config.smoothed_speed_data_dir)[
         'smooth_speed'][:, 1:].reshape(-1, 1)
     # smoothed_speed = smooth_data(speed_label, frac_param=file_config.speed_frac_param / (len(flow_demo) / 288))
     speed_demo_var = var_calc(speed_label, smoothed_speed, calc_step=file_config.var_calc_step)
