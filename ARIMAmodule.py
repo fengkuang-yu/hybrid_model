@@ -25,7 +25,7 @@ y.plot(figsize=(15, 6))
 plt.show()
 
 # 建立ARIMA模型
-mod = sm.tsa.statespace.SARIMAX(y, order=(5, 1, 1))
+mod = sm.tsa.statespace.SARIMAX(y, order=(5, 1, 1),seasonal_order=(1, 1, 1, 12), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
 print(results.summary().tables[1])
 results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
@@ -53,7 +53,39 @@ print('The Mean Absolute Error of our forecasts is {}'.format(round(mae, 5)))
 
 # ARIMA的残差
 residuals = results.forecasts_error
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+plot_acf(residuals.flatten(), lags=300)
+plt.show()
+plot_pacf(residuals.flatten(), lags=50)
+plt.show()
 # plt.plot(results.forecasts_error.flatten()[0:288])
 # plt.rcParams['savefig.dpi'] = 600  # 图片像素
 # plt.rcParams['figure.dpi'] = 600  # 分辨率
 # plt.show()
+
+# 输出平滑后的曲线
+real_data = np.array(y)
+smoothed_data = real_data - residuals.flatten()
+plt.plot(smoothed_data[0:288], linewidth=1, label='smoothed_data')
+plt.plot(real_data[0:288], linewidth=1, label='real_data')
+plt.rcParams['savefig.dpi'] = 600  # 图片像素
+plt.rcParams['figure.dpi'] = 600  # 分辨率
+plt.legend()
+plt.show()
+
+# 建立GJR-ARCH模型
+returns = residuals
+am = arch_model(returns, p=1, o=1, q=1, dist='StudentsT')
+res = am.fit(update_freq=5, disp='off')
+print(res.summary())
+fig = res.plot(annualize='D')  # 快速展示标准偏差和条件波动
+fig.show()
+
+# 原始序列构造完整序列处理过程与原始序列进行对比
+hybird_data = smoothed_data + res.resid
+mae2 = np.mean(np.abs(((hybird_data - real_data) / real_data)[1:]))
+print('The Mean Absolute Error of our forecasts is {}'.format(round(mae2, 5)))
+
+plt.plot(hybird_data[288:576], label='hybrid_data', linewidth=1)
+plt.plot(real_data[288:576], label='real_data', linewidth=1)
+plt.show()
