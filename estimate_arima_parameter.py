@@ -3,15 +3,15 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   ARIMAmodule.py
-@Time    :   2018/10/18 14:53
+@File    :   estimate_arima_parameter.py
+@Time    :   2018/10/21 21:09
 @Desc    :
 """
 
 import warnings
 import itertools
 import pandas as pd
-import numpy as np
+import numpy as npb
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from arch import arch_model
@@ -23,7 +23,7 @@ y = pd.Series(pd_data['20.93'])
 y.index = pd.date_range(start='2018-08-01 00:00:00', periods=16992,freq='5min',normalize=True)
 
 # 建立ARIMA模型
-mod = sm.tsa.statespace.SARIMAX(y, order=(5, 2, 1), enforce_stationarity=False, enforce_invertibility=False)
+mod = sm.tsa.statespace.SARIMAX(y, order=(18, 2, 1), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
 print(results.summary().tables[1])
 results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
@@ -49,57 +49,29 @@ y_truth = y['2018-08-01 00:00:00':]
 mae = ((y_forecasted - y_truth) / y_truth).abs().mean()
 print('The Mean Absolute Error of our forecasts is {}'.format(round(mae, 5)))
 
-# ARIMA的残差
 residuals = results.forecasts_error
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 plot_acf(residuals.flatten(), lags=576)
 plt.show()
 plot_pacf(residuals.flatten(), lags=300)
 plt.show()
-# plt.plot(results.forecasts_error.flatten()[0:288])
-# plt.rcParams['savefig.dpi'] = 600  # 图片像素
-# plt.rcParams['figure.dpi'] = 600  # 分辨率
-# plt.show()
 
-# 输出平滑后的曲线
-real_data = np.array(y)
-smoothed_data = real_data - residuals.flatten()
-plt.plot(smoothed_data[0:288], linewidth=1, label='smoothed_data')
-plt.plot(real_data[0:288], linewidth=1, label='real_data')
-plt.rcParams['savefig.dpi'] = 600  # 图片像素
-plt.rcParams['figure.dpi'] = 600  # 分辨率
-plt.legend()
-plt.show()
 
-# 检验序列具有ARCH效应
-at = residuals.flatten()[0:2880]
-at2 = np.square(at)
-plt.figure(figsize=(10,6))
-plt.subplot(211)
-plt.plot(at,label = 'at')
-plt.legend()
-plt.subplot(212)
-plt.plot(at2,label='at^2')
-plt.legend(loc=0)
-plt.show()
 
-# 建立GJR-ARCH模型
-returns = residuals
-am = arch_model(returns, vol='Garch', p=1, q=1, dist='normal')
-res = am.fit(update_freq=5, disp='off')
-print(res.summary())
-fig = res.plot(annualize='D')  # 快速展示标准偏差和条件波动
-fig.show()
+p = d = q = range(0, 2)
+pdq = list(itertools.product(p, d, q))
+warnings.filterwarnings("ignore") # specify to ignore warning messages
+for param in pdq:
+    for param_seasonal in seasonal_pdq:
+        try:
+            mod = sm.tsa.statespace.SARIMAX(y,
+                                            order=param,
+                                            seasonal_order=param_seasonal,
+                                            enforce_stationarity=False,
+                                            enforce_invertibility=False)
 
-forecasts = res.forecast()
-pred_var = forecasts.residual_variance
-plt.show()
+            results = mod.fit()
 
-# 原始序列构造完整序列处理过程与原始序列进行对比
-hybird_data = smoothed_data + res.resid
-mae2 = np.mean(np.abs(((hybird_data - real_data) / real_data)[1:]))
-print('The Mean Absolute Error of our forecasts is {}'.format(round(mae2, 5)))
-
-plt.plot(hybird_data[288:576], label='hybrid_data', linewidth=1)
-plt.plot(real_data[288:576], label='real_data', linewidth=1)
-plt.show()
+            print('ARIMA{}x{}12 - AIC:{}'.format(param, param_seasonal, results.aic))
+        except:
+            continue
