@@ -52,9 +52,9 @@ print('The Mean Absolute Error of our forecasts is {}'.format(round(mae, 5)))
 # ARIMA的残差
 residuals = results.forecasts_error
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-plot_acf(residuals.flatten(), lags=576)
+plot_acf(residuals.flatten(), lags=10)
 plt.show()
-plot_pacf(residuals.flatten(), lags=300)
+plot_pacf(residuals.flatten(), lags=10)
 plt.show()
 # plt.plot(results.forecasts_error.flatten()[0:288])
 # plt.rcParams['savefig.dpi'] = 600  # 图片像素
@@ -72,34 +72,57 @@ plt.legend()
 plt.show()
 
 # 检验序列具有ARCH效应
-at = residuals.flatten()[0:2880]
-at2 = np.square(at)
-plt.figure(figsize=(10,6))
-plt.subplot(211)
-plt.plot(at,label = 'at')
-plt.legend()
-plt.subplot(212)
-plt.plot(at2,label='at^2')
-plt.legend(loc=0)
-plt.show()
+# at = residuals.flatten()[0:2880]
+# at2 = np.square(at)
+# plt.figure(figsize=(10,6))
+# plt.subplot(211)
+# plt.plot(at,label = 'at')
+# plt.legend()
+# plt.subplot(212)
+# plt.plot(at2,label='at^2')
+# plt.legend(loc=0)
+# plt.show()
 
 # 建立GJR-ARCH模型
-returns = residuals
+returns = pd.Series(residuals.flatten(),
+                    index=pd.date_range(start='2018-08-01 00:00:00',
+                                        periods=16992,
+                                        freq='5min',
+                                        normalize=True
+                                        )
+                    )
 am = arch_model(returns, vol='Garch', p=1, q=1, dist='normal')
 res = am.fit(update_freq=5, disp='off')
 print(res.summary())
-fig = res.plot(annualize='D')  # 快速展示标准偏差和条件波动
-fig.show()
 
-forecasts = res.forecast()
-pred_var = forecasts.residual_variance
+index = returns.index
+start_loc = 0
+end_loc = 20
+forecasts = {}
+import sys
+for i in range(len(returns)-20):
+    sys.stdout.write('.')
+    sys.stdout.flush()
+    res2 = am.fit(first_obs=i, last_obs=i+end_loc, disp='off')
+    temp = res.forecast(horizon=1).variance
+    fcast = temp.iloc[i+end_loc-1]
+    forecasts[fcast.name] = fcast
+
+res_conditional_volatility_prediction = pd.DataFrame(forecasts).T
+res_conditional_volatility_prediction.plot(label='volatility_perdiction')
+plt.legend()
 plt.show()
+res.conditional_volatility.plot(label='volatility_real')
+plt.legend()
+plt.show()
+
 
 # 原始序列构造完整序列处理过程与原始序列进行对比
-hybird_data = smoothed_data + res.resid
-mae2 = np.mean(np.abs(((hybird_data - real_data) / real_data)[1:]))
-print('The Mean Absolute Error of our forecasts is {}'.format(round(mae2, 5)))
-
-plt.plot(hybird_data[288:576], label='hybrid_data', linewidth=1)
-plt.plot(real_data[288:576], label='real_data', linewidth=1)
-plt.show()
+# hybird_data = smoothed_data + res.resid
+# mae2 = np.mean(np.abs(((hybird_data - real_data) / real_data)[1:]))
+# print('The Mean Absolute Error of our forecasts is {}'.format(round(mae2, 5)))
+#
+# plt.plot(hybird_data[288:576], label='hybrid_data', linewidth=1)
+# plt.plot(real_data[288:576], label='real_data', linewidth=1)
+# plt.show()
+# pd.Series(res.conditional_volatility).to_csv(r"D:\桌面\res_conditional_volatility.csv")
