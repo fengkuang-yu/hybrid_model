@@ -22,6 +22,12 @@ pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_da
 y = pd.Series(pd_data['20.93'])
 y.index = pd.date_range(start='2018-08-01 00:00:00', periods=16992,freq='5min',normalize=True)
 
+# 对输入数据进行历史平均处理
+demo_array = np.array(y).reshape((-1, 288)).T
+demo_average = np.mean(demo_array, axis=1)
+history_average = pd.Series(demo_average)
+history_average.index = pd.date_range(start='0', periods=288, freq='1s',normalize=True)
+
 # 建立ARIMA模型
 mod = sm.tsa.statespace.SARIMAX(y, order=(5, 2, 1), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()

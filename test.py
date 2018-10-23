@@ -59,8 +59,22 @@ def data_pro(data, time_steps=None, slide_sep=True):
         raise Exception('data_pro数据输入格式错误')
 
 
-time_step = 100
-frac_param = 0.05
+# 读取数据
+real_data = pd.read_csv(r'Data/arima_volatility_data/real_data.csv', index_col=0, header=None)
+arima_pred = pd.read_csv(r'Data/arima_volatility_data/ARIMA_prediction.csv', index_col=0, header=None)
+arima_resid = pd.read_csv(r'Data/arima_volatility_data/ARIMA_residuals.csv', index_col=0, header=None)
+arima_resid.index = real_data.index
+arima_smooth = pd.read_csv(r'Data/arima_volatility_data/ARIMA_smoothed.csv', index_col=0, header=None)
+arima_smooth.index = real_data.index
+res_volatility_GARCH = pd.read_csv(r'Data/arima_volatility_data/res_conditional_volatility_GARCH.csv',
+                                   index_col=0, header=None)
+res_volatility_GJRARCH = pd.read_csv(r'Data/arima_volatility_data/res_conditional_volatility_GJR_ARCH.csv',
+                                     index_col=0, header=None)
+pred_volatility_GARCH = pd.read_csv(r'Data/arima_volatility_data/res_conditional_volatility_prediction.csv',
+                                    index_col=0)
+merged_data = pd.concat([arima_resid, arima_smooth, arima_pred, pred_volatility_GARCH], axis=1)
+
+
 pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_59.csv',
                    index_col='Datetime \ Milepost')
 flow_demo = np.array(pd_data['20.93'], dtype=float)
