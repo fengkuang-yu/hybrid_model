@@ -15,29 +15,65 @@ import numpy as np
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from arch import arch_model
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 # 处理输入数据
 plt.style.use('fivethirtyeight')
 pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
-y.index = pd.date_range(start='2018-08-01 00:00:00', periods=16992,freq='5min',normalize=True)
+y.index = pd.date_range(start='2018-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
 
-# 对输入数据进行历史平均处理
+
+# 对输入数据进行历史平均处理,这里构造三个特征：
+# 1. 第一个特征（history_average）是历史平均值，使用历史平均值作为周期/季节成分
+# 2. 第二个特征（history_diff   ）是使用历史平均值的差分值，相当于下一刻相对于现在的变化量
+# 3. 第三个特征（deterministic  ）是实际数据减去历史平均值的每日实时波动部分
 demo_array = np.array(y).reshape((-1, 288)).T
 demo_average = np.mean(demo_array, axis=1)
-history_average = pd.Series(demo_average)
-history_average.index = pd.date_range(start='0', periods=288, freq='1s',normalize=True)
+demo_average_extend = np.tile(demo_average, int(len(pd_data)/288))
+history_average = pd.Series(demo_average_extend)
+history_average.index = pd.date_range(start='2018-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
+deterministic = y - history_average  # 减去均值后得到的序列的部分
+history_diff_extend = np.roll(demo_average_extend, -1) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动一位
+history_diff = pd.Series(history_diff_extend)
+history_diff.index = pd.date_range(start='2018-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
+# 以2月1日为例画出分析后的特征图
+plt.rcParams['savefig.dpi'] = 300  # 图片像素
+plt.rcParams['figure.dpi'] = 300  # 分辨率
+history_average.iloc[0:288].plot(label='History Average', linewidth=1, fontsize=12)
+y.iloc[0:288].plot(label='Real', linewidth=1, fontsize=12)
+deterministic.iloc[0:288].plot(label='Residual Part', linewidth=1, fontsize=12)
+plt.legend(fontsize=12)
+plt.ylabel('Traffic Flow(vehicles)', fontsize=14)
+plt.xlabel('Time', fontsize=14)
+plt.show()
+
+
+# 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
+plt.rcParams['savefig.dpi'] = 300  # 图片像素
+plt.rcParams['figure.dpi'] = 300  # 分辨率
+plot_acf(deterministic, lags=30)
+plt.title('')
+plt.ylabel('ACF', fontsize=16)
+plt.xlabel('Time Lag(5mins)', fontsize=16)
+plt.show()
+plot_pacf(deterministic, lags=30)
+plt.title('')
+plt.ylabel('PACF', fontsize=16)
+plt.xlabel('Time Lag(5mins)', fontsize=16)
+plt.show()
+
 
 # 建立ARIMA模型
-mod = sm.tsa.statespace.SARIMAX(y, order=(5, 2, 1), enforce_stationarity=False, enforce_invertibility=False)
+mod = sm.tsa.statespace.SARIMAX(deterministic, order=(5, 2, 1), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
 print(results.summary().tables[1])
 results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
 plt.show()
-pred = results.get_prediction(start=pd.to_datetime('2018-08-01 00:00:00'), dynamic=False)  # 利用建立好的模型进行预测
+pred = results.get_prediction(start=pd.to_datetime('2018-02-01 00:00:00'), dynamic=False)  # 利用建立好的模型进行预测
 pred_ci = pred.conf_int()  # 置信度区间计算
 
-ax = y['2018-08-01 00:00:00':].plot(label='observed')  # 画出真实值
+ax = y['2018-02-01 00:00:00':].plot(label='observed')  # 画出真实值
 pred.predicted_mean.plot(ax=ax, label='One-step ahead Forecast', alpha=.7)  # 画出预测的值
 ax.fill_between(pred_ci.index,  # 画出置信区间，其中pred_ci.iloc[:,0]表示的是下界，另外一个表示的是上界
                 pred_ci.iloc[:, 0],  # 下界
@@ -49,7 +85,7 @@ ax.set_ylabel('traffic flow')
 plt.legend()
 plt.show()
 y_forecasted = pred.predicted_mean
-y_truth = y['2018-08-01 00:00:00':]
+y_truth = y['2018-02-01 00:00:00':]
 
 # 计算预测误差
 mae = ((y_forecasted - y_truth) / y_truth).abs().mean()
@@ -91,7 +127,7 @@ plt.show()
 
 # 建立GJR-ARCH模型
 returns = pd.Series(residuals.flatten(),
-                    index=pd.date_range(start='2018-08-01 00:00:00',
+                    index=pd.date_range(start='2018-02-01 00:00:00',
                                         periods=16992,
                                         freq='5min',
                                         normalize=True
@@ -132,3 +168,7 @@ plt.show()
 # plt.plot(real_data[288:576], label='real_data', linewidth=1)
 # plt.show()
 # pd.Series(res.conditional_volatility).to_csv(r"D:\桌面\res_conditional_volatility.csv")
+
+
+mae = (np.abs(np.array(history_average) - np.array(y_truth))/np.array(y_truth)).mean()
+print('The Mean Absolute Error of our forecasts is {}'.format(round(mae, 5)))
