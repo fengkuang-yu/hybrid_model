@@ -3,7 +3,7 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   batch_test.py
+@File    :   test.py
 @Time    :   2018/10/12 11:08
 @Desc    :
 """
