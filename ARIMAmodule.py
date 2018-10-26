@@ -179,27 +179,25 @@ plt.tight_layout()
 plt.show()
 
 # 建立GJR-ARCH模型
-am = arch_model(residuals, vol='Garch', p=1, q=1, dist='StudentsT')
+am = arch_model(residuals, vol='Garch', p=1, q=1, dist='normal')
 res = am.fit(update_freq=5, disp='off')
 print(res.summary())
 index = residuals.index
 start_loc = 0
-end_loc = 288
+end_loc = 287
 forecasts = {}
 for i in range(len(residuals)-288):
-    res2 = am.fit(first_obs=i, last_obs=i+end_loc, disp='off')
-    temp = res2.forecast(horizon=1).variance
-    fcast = temp.iloc[i+end_loc-1]
+    res2 = am.fit(last_obs=i+end_loc, disp='off')
+    temp_variance = res2.forecast().variance
+    fcast = temp_variance.iloc[-1]
     forecasts[fcast.name] = fcast
 
-res_conditional_volatility_prediction = pd.DataFrame(forecasts).T
-res_conditional_volatility_prediction.plot(label='volatility_perdiction')
+variance_pred = pd.DataFrame(forecasts).T
+variance_pred.rename(columns={0:'variance_pred'})  # 改变列的名字
+variance_pred.plot(label='variance_perdiction')
 plt.legend()
 plt.show()
 res.conditional_volatility.plot(label='volatility_real')
 plt.legend()
 plt.show()
 
-
-mae = (np.abs(np.array(history_average) - np.array(y_truth))/np.array(y_truth)).mean()
-print('The Mean Absolute Error of our forecasts is {}'.format(round(mae, 5)))
