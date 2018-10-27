@@ -16,9 +16,9 @@ from data_processor import *
 
 
 class LstmConfig(object):
-    INPUT_NODE_VAR = 28  # 手动提取特征的数量
+    INPUT_NODE_VAR = 6  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
-    SPACE_STEPS = 24  # LSTM输入图片的空间维度
+    SPACE_STEPS = 1  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
     HIDDEN_NODE = 128  # LSTM隐含层的神经元个数
     STACKED_LAYERS = 2  # LSTM堆叠层数
@@ -118,7 +118,7 @@ def lstm_train(data, label):
 
             if i % nn_config.DISP_PER_TIMES == 0:
                 print("After %d training step(s), loss on training batch is %g." % (step, loss_value))
-        saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
+        # saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
         print("Optimization Finished!")
         # test
         global prediction
@@ -223,7 +223,7 @@ def lstm_train_hybrid(data1, data2, label):
                 print("After %d training step(s), loss on training batch is %g." % (step, loss_value))
         coord.request_stop()
         coord.join(threads)
-        saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
+        # saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
         print("Optimization Finished!")
         # 测试集数据验证
         global prediction
@@ -299,12 +299,17 @@ def cnn_train(data, label):
 if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
-    lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
-    flow_label = normal_data(flow_label_real)
+    # lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
+    merged_data = pd.read_csv(r'D:\software\pycharm\PycharmProjects\demo\merged_data.csv', index_col=0).iloc[288:, :]
+    flow_label_real = np.array(merged_data['Real_data']).reshape(-1, 1)
+    hybrid_data = np.array(merged_data)
+    hybrid_data_normal = normal_data(hybrid_data)  # 输入DNN的特征数据
+    flow_label = normal_data(flow_label_real)  # 输入占位符y的标签数据
+    lstm_data = flow_label  # 输入lstm网络的数据
 
     # 仅使用流量作为输入
-    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-1,:]
-    hybrid_input = hybrid_data[nn_config.TIME_STEPS - 1:-1, :]
+    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-1, :]
+    hybrid_input = hybrid_data_normal[nn_config.TIME_STEPS - 1:-1, :]
     label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
@@ -325,4 +330,4 @@ if __name__ == '__main__':
     print('MAPE=', mape, '\nMAE=', mae)
 
     # 数据的保存
-    sio.savemat(r'D:\桌面\prediction_lstm', {'pred': prediction_real})
+    sio.savemat(r'E:\\prediction_lstm_hybrid', {'pred': prediction_real})
