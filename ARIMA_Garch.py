@@ -3,7 +3,7 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   ARIMAmodule.py
+@File    :   ARIMA_Garch.py
 @Time    :   2018/10/18 14:53
 @Desc    :
 """
