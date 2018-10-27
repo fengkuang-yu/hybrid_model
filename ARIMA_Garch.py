@@ -3,7 +3,7 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   ARIMA_Garch.py
+@File    :   ARIMAmodule.py
 @Time    :   2018/10/18 14:53
 @Desc    :
 """
@@ -17,35 +17,9 @@ import statsmodels.tsa.api as smt
 from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-
-def tsplot(y, lags=None, figsize=(10, 8), style='bmh'):
-    if not isinstance(y, pd.Series):
-        y = pd.Series(y)
-    with plt.style.context(style):
-        fig = plt.figure(figsize=figsize)
-        # mpl.rcParams['font.family'] = 'Ubuntu Mono'
-        layout = (3, 2)
-        ts_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
-        acf_ax = plt.subplot2grid(layout, (1, 0))
-        pacf_ax = plt.subplot2grid(layout, (1, 1))
-        qq_ax = plt.subplot2grid(layout, (2, 0))
-        pp_ax = plt.subplot2grid(layout, (2, 1))
-
-        y.plot(ax=ts_ax)
-        ts_ax.set_title('Time Series Analysis Plots')
-        smt.graphics.plot_acf(y, lags=lags, ax=acf_ax, alpha=0.5)
-        smt.graphics.plot_pacf(y, lags=lags, ax=pacf_ax, alpha=0.5)
-        sm.qqplot(y, line='s', ax=qq_ax)
-        qq_ax.set_title('QQ Plot')
-        scs.probplot(y, sparams=(y.mean(), y.std()), plot=pp_ax)
-
-        plt.tight_layout()
-    return
-
-
 # 处理输入数据
 plt.style.use('fivethirtyeight')
-pd_data = pd.read_csv(r'C:\Users\user\PycharmProjects\demo\flow_data_59.csv')
+pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
 y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
@@ -206,7 +180,8 @@ plt.legend()
 plt.show()
 
 # 将各特征拼接成一个DataFrame，然后导出为csv文件
-merged_feature = pd.concat([y, history_average, smoothed_deterministic, residuals, volatility_pred, history_diff], axis=1)
+merged_feature = pd.concat([y, history_average, smoothed_deterministic, residuals, volatility_pred, history_diff],
+                           axis=1)
 merged_feature = merged_feature.rename(columns={'20.93': 'Real_data',
                                                 0: 'History_average',
                                                 1: 'Smoothed_deterministic',
@@ -214,3 +189,11 @@ merged_feature = merged_feature.rename(columns={'20.93': 'Real_data',
                                                 2: 'History_diff'})
 merged_feature = merged_feature.fillna(value=0)
 merged_feature.to_csv(r'E:\merged_data.csv')
+
+
+merged_feature = pd.read_csv(r'D:\software\pycharm\PycharmProjects\demo\merged_data.csv')
+Volatility_pred = merged_feature['Volatility_pred']
+(Volatility_pred.iloc[-288:]*10).plot()
+(res.conditional_volatility.iloc[-288:]*10).plot()
+y.iloc[-288:].plot()
+plt.show()

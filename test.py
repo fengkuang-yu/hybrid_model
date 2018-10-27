@@ -75,28 +75,3 @@ pred_volatility_GARCH = pd.read_csv(r'Data/arima_volatility_data/res_conditional
 merged_data = pd.concat([arima_resid, arima_smooth, arima_pred, pred_volatility_GARCH], axis=1)
 
 
-pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\speed_data_59.csv',
-                   index_col='Datetime \ Milepost')
-flow_demo = np.array(pd_data['20.93'], dtype=float)
-data = flow_demo.reshape(-1, 1)
-pro_data = data_pro(data, time_steps=288)
-smooth_data = []
-for i in range(len(pro_data)):
-    seg_filted = seg_filter(pro_data[i], frac_param=0.10)
-    smooth_data.append(seg_filted[-1, -1])
-
-smooth_data = np.array(smooth_data)
-sio.savemat(r'D:\桌面\speed_data_param=0.10', {'smooth_speed': np.array(smooth_data)})
-
-
-
-
-plt.plot(data[-1-288:])
-plt.plot(smooth_data[-1-288:])
-# 使用整体的平滑结果
-filtered_data = lowess(data.flatten(),
-                       np.array([x for x in range(len(data.flatten()))]),
-                       is_sorted=True, frac=0.05 / 59, it=0)
-plt.plot(filtered_data[-1-288:, -1])
-plt.legend(['real', 'seg_smooth', 'all_smooth'])
-plt.show()
