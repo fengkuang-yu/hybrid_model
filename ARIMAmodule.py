@@ -8,8 +8,6 @@
 @Desc    :
 """
 
-import warnings
-import itertools
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -44,11 +42,12 @@ def tsplot(y, lags=None, figsize=(10, 8), style='bmh'):
         plt.tight_layout()
     return
 
+
 # 处理输入数据
 plt.style.use('fivethirtyeight')
-pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
+pd_data = pd.read_csv(r'C:\Users\user\PycharmProjects\demo\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
-y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
+y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
 # 对输入数据进行历史平均处理,这里构造三个特征：
 # 1. 第一个特征（history_average）是历史平均值，使用历史平均值作为周期/季节成分
@@ -56,13 +55,13 @@ y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992,freq='5min',n
 # 3. 第三个特征（deterministic  ）是实际数据减去历史平均值的每日实时波动部分
 demo_array = np.array(y).reshape((-1, 288)).T
 demo_average = np.mean(demo_array, axis=1)
-demo_average_extend = np.tile(demo_average, int(len(pd_data)/288))
+demo_average_extend = np.tile(demo_average, int(len(pd_data) / 288))
 history_average = pd.Series(demo_average_extend)
-history_average.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
+history_average.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 deterministic = y - history_average  # 减去均值后得到的序列的部分
 history_diff_extend = np.roll(demo_average_extend, -1) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动一位
 history_diff = pd.Series(history_diff_extend)
-history_diff.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992,freq='5min',normalize=True)
+history_diff.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 # 以2月1日为例画出分析后的特征图
 plt.rcParams['savefig.dpi'] = 300  # 图片像素
 plt.rcParams['figure.dpi'] = 300  # 分辨率
@@ -73,7 +72,6 @@ plt.legend(fontsize=12)
 plt.ylabel('Traffic Flow(vehicles)', fontsize=14)
 plt.xlabel('Time', fontsize=14)
 plt.show()
-
 
 # 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
 plt.rcParams['savefig.dpi'] = 300  # 图片像素
@@ -88,7 +86,6 @@ plt.title('')
 plt.ylabel('PACF', fontsize=16)
 plt.xlabel('Time Lag(5mins)', fontsize=16)
 plt.show()
-
 
 # 使用AIC进行模型选择
 # p = d = q = range(0, 3)
@@ -112,7 +109,7 @@ print(results.summary())  # 模型的诊断表
 results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
 plt.show()
 residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
-residuals = residuals.rename(columns={0:'Residuals'})  # 改变列的名字
+residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
 smoothed_deterministic = results.fittedvalues  # deterministic中取出residuals的剩余值
 # y == results.fittedvalues + results.resid + history_average
 
@@ -161,7 +158,7 @@ print('The Mean Absolute Error of ARIMA forecasts is {}'.format(round(mae, 5)))
 # 检验序列具有ARCH效应
 at = residuals[0:2880]
 at2 = np.square(at)
-fig = plt.figure(figsize=(10,6))
+fig = plt.figure(figsize=(10, 6))
 layout = (2, 2)
 at2_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
 acf_ax = plt.subplot2grid(layout, (1, 0))
@@ -179,25 +176,41 @@ plt.tight_layout()
 plt.show()
 
 # 建立GJR-ARCH模型
-am = arch_model(residuals, vol='Garch', p=1, q=1, dist='normal')
+am = arch_model(residuals, vol='Garch', p=1, q=1, dist='t')
 res = am.fit(update_freq=5, disp='off')
 print(res.summary())
 index = residuals.index
 start_loc = 0
-end_loc = 287
+end_loc = 288
 forecasts = {}
-for i in range(len(residuals)-288):
-    res2 = am.fit(last_obs=i+end_loc, disp='off')
-    temp_variance = res2.forecast().variance
-    fcast = temp_variance.iloc[-1]
+
+# 这个的输出结果基本上和res.conditional_volatility相同
+for i in range(len(residuals) - end_loc):
+    if i % 1000 == 0:
+        print(i)
+    res2 = am.fit(first_obs=0, last_obs=i + end_loc, disp='off')
+    temp_variance = res2.forecast(horizon=1).variance
+    fcast = temp_variance.iloc[i + end_loc - 1]
     forecasts[fcast.name] = fcast
 
+# 画出波动率和方差的图
 variance_pred = pd.DataFrame(forecasts).T
-variance_pred.rename(columns={0:'variance_pred'})  # 改变列的名字
-variance_pred.plot(label='variance_perdiction')
+variance_pred = pd.concat([temp_variance.iloc[0:287], variance_pred], axis=0)
+variance_pred = variance_pred.rename(columns={0: 'variance_pred'})  # 改变列的名字
+volatility_pred = np.sqrt(variance_pred)
+volatility_pred.plot(label='volatility_prediction')
 plt.legend()
 plt.show()
 res.conditional_volatility.plot(label='volatility_real')
 plt.legend()
 plt.show()
 
+# 将各特征拼接成一个DataFrame，然后导出为csv文件
+merged_feature = pd.concat([y, history_average, smoothed_deterministic, residuals, volatility_pred, history_diff], axis=1)
+merged_feature = merged_feature.rename(columns={'20.93': 'Real_data',
+                                                0: 'History_average',
+                                                1: 'Smoothed_deterministic',
+                                                'h.1': 'Volatility_pred',
+                                                2: 'History_diff'})
+merged_feature = merged_feature.fillna(value=0)
+merged_feature.to_csv(r'E:\merged_data.csv')
