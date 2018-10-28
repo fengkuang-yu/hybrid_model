@@ -8,10 +8,9 @@
 @Desc    :
 """
 
-import os
-import scipy.io as sio
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+
 from data_processor import *
 
 
@@ -205,9 +204,9 @@ def lstm_train_hybrid(data1, data2, label):
                                                                      min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
     train_datas1 = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
     train_datas2 = tf.reshape(train_datas2, [-1, nn_config.INPUT_NODE_VAR])
-    train_label = tf.reshape(train_label, [-1, 1])
+    train_label = tf.reshape(train_label, [-1, nn_config.SPACE_STEPS])
     # 初始化TensorFlow持久化类。
-    saver = tf.train.Saver()
+    # saver = tf.train.Saver()
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         coord = tf.train.Coordinator()
@@ -229,7 +228,7 @@ def lstm_train_hybrid(data1, data2, label):
         global prediction
         test_datas1 = x_test.reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
         test_datas2 = x_test2.reshape(-1, nn_config.INPUT_NODE_VAR)
-        test_label = y_train.reshape(-1, 1)
+        test_label = y_train.reshape(-1, nn_config.SPACE_STEPS)
         prediction = sess.run(y, feed_dict={x_1: test_datas1, x_2: test_datas2, y_: test_label})
 
 
@@ -323,7 +322,7 @@ if __name__ == '__main__':
     prediction_real = prediction * normal_data_gap + normal_data_min
 
     # 训练程序结束，开始画图可视化
-    plot_one_day(flow_test_real[-1-287:], prediction_real[-1-287:])
+    plot_one_day(flow_test_real[-1 - 287:], prediction_real[-1 - 287:])
     d = abs(flow_test_real - prediction_real.flatten())
     mape = sum(d / prediction_real.flatten()) / prediction_real.shape[0]
     mae = sum(d) / prediction_real.shape[0]
