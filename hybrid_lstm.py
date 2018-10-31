@@ -301,7 +301,7 @@ if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
     # lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
-    merged_data = pd.read_csv(r'D:\software\pycharm\PycharmProjects\demo\merged_data.csv', index_col=0).iloc[288:, :]
+    merged_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data.csv', index_col=0).iloc[288:, :]
     flow_label_real = np.array(merged_data['Real_data']).reshape(-1, 1)
     hybrid_data = np.array(merged_data)
     hybrid_data_normal = normal_data(hybrid_data)  # 输入DNN的特征数据
