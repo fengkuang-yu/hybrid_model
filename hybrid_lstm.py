@@ -78,8 +78,7 @@ def lstm_train(data, label):
 
     # # 不使用手动提取的特征
     with tf.variable_scope('fc_2'):
-        fc2_weights = get_weight_variable([nn_config.HIDDEN_NODE, nn_config.OUTPUT_NODE],
-                                          regularizer=regularizer)
+        fc2_weights = get_weight_variable([nn_config.HIDDEN_NODE, nn_config.OUTPUT_NODE], regularizer=regularizer)
         fc2_biases = get_bais_variable([nn_config.OUTPUT_NODE])
         y = tf.matmul(y_lstm[-1], fc2_weights) + fc2_biases
 
@@ -90,39 +89,42 @@ def lstm_train(data, label):
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
     cross_entropy_mean = tf.reduce_sum(tf.square(y_ - y)) / nn_config.BATCH_SIZE
     loss = cross_entropy_mean + tf.add_n(tf.get_collection('losses'))
-    # learning_rate = tf.train.exponential_decay(
-    #     nn_config.LEARNING_RATE_BASE,
-    #     global_step,
-    #     x_train.shape[0] / nn_config.BATCH_SIZE,
-    #     nn_config.LEARNING_RATE_DECAY,
-    #     staircase=True)
-    #
-    # train_step = tf.train.GradientDescentOptimizer(
-    #     learning_rate).minimize(loss, global_step=global_step)
     train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss, global_step=global_step)
     with tf.control_dependencies([train_step, variables_averages_op]):
         train_op = tf.no_op(name='train')
 
-    # 初始化TensorFlow持久化类。
-    saver = tf.train.Saver()
+    # 生成batch的数据配置
+    input_queue = tf.train.slice_input_producer([x_train, y_train])
+    lstm_data = input_queue[0]
+    label_data = input_queue[1]
+
+    train_datas1, train_label1 = tf.train.shuffle_batch([lstm_data, label_data],
+                                                        batch_size=nn_config.BATCH_SIZE,
+                                                        num_threads=32,
+                                                        capacity=nn_config.QUEUE_CAPACITY,
+                                                        min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
+    train_datas = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
+    train_label = tf.reshape(train_label1, [-1, nn_config.SPACE_STEPS])
+
+    # 训练开始
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         for i in range(nn_config.TRAINING_STEPS):
-            sample1 = np.random.randint(0, x_train.shape[0], size=(1, nn_config.BATCH_SIZE))
-            train_datas = x_train[sample1].reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
-            train_label = y_train[sample1].reshape(-1, 1)
-
-            _, loss_value, step = sess.run([train_op, loss, global_step], feed_dict={x_1: train_datas, y_: train_label})
+            cur_lstm_data, cur_label = sess.run([train_datas, train_label])
+            _, loss_value, step = sess.run([train_op, loss, global_step],
+                                           feed_dict={x_1: cur_lstm_data, y_: cur_label})
 
             if i % nn_config.DISP_PER_TIMES == 0:
                 print("After %d training step(s), loss on training batch is %g." % (step, loss_value))
-        # saver.save(sess, os.path.join(nn_config.MODEL_SAVE_PATH, nn_config.MODEL_NAME), global_step=global_step)
+        coord.request_stop()
+        coord.join(threads)
         print("Optimization Finished!")
         # test
         global prediction
         test_data = x_test.reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
-        test_label = y_test.reshape(-1, 1)
+        test_label = y_test.reshape(-1, nn_config.SPACE_STEPS)
         prediction = sess.run(y, feed_dict={x_1: test_data, y_: test_label})
 
 
