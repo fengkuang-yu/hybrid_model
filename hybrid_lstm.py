@@ -16,26 +16,22 @@ from data_processor import *
 
 class LstmConfig(object):
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
-    TIME_STEPS = 8  # 用于计算的时滞
+    TIME_STEPS = 6  # 用于计算的时滞
     SPACE_STEPS = 1  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
-    HIDDEN_NODE = 128  # LSTM隐含层的神经元个数
+    HIDDEN_NODE = 32  # LSTM隐含层的神经元个数
     STACKED_LAYERS = 2  # LSTM堆叠层数
     FC1_HIDDEN = 64  # 聚合特征回归网络的神经元个数
     FC2_HIDDEN = 32  # 同上
     BATCH_SIZE = 100  # batchsize数
-    LEARNING_RATE_BASE = 1e-4  # 初始学习率
+    LEARNING_RATE_BASE = 3e-4  # 初始学习率
     LEARNING_RATE_DECAY = 0.99  # 衰减
     REGULARIZATION_RATE = 1e-4  # 正则化系数
-    TRAINING_STEPS = 25000  # 迭代次数
+    TRAINING_STEPS = 50000  # 迭代次数
     DISP_PER_TIMES = 1000  # 间隔多少次显示预测效果
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
-    QUEUE_CAPACITY = 10000 + BATCH_SIZE * 3
-    MIN_AFTER_DEQUEUE = 5000
-    EPOCHS = 150
-    MODEL_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\model_saver'
-    RESULT_SAVE_PATH = r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result'
-    MODEL_NAME = 'model'
+    QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
+    MIN_AFTER_DEQUEUE = 500
 
 
 def get_weight_variable(shape, regularizer=None):
@@ -234,69 +230,6 @@ def lstm_train_hybrid(data1, data2, label):
         prediction = sess.run(y, feed_dict={x_1: test_datas1, x_2: test_datas2, y_: test_label})
 
 
-def cnn_train(data, label):
-    """
-    CNN神经网络
-    :param data:
-    :param label:
-    :return:
-    """
-    global x_train, x_test, y_train, y_test
-    x_train, x_test, y_train, y_test = train_test_split(data, label, test_size=0.2, shuffle=False)
-    x_1 = tf.placeholder(tf.float32, [None, nn_config.TIME_STEPS * nn_config.SPACE_STEPS], name='x-input')
-    y_ = tf.placeholder(tf.float32, [None, nn_config.OUTPUT_NODE], name='y-input')
-    regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE)
-    with tf.variable_scope('conv1'):
-        conv1_weights = get_weight_variable([2, 2, 1, 32])
-        conv1_biases = get_bais_variable([32])
-        x_image = tf.reshape(x_1, [-1, nn_config.TIME_STEPS, nn_config.SPACE_STEPS, 1])
-        conv1 = tf.nn.conv2d(x_image, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
-        relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
-        pool1 = tf.nn.max_pool(relu1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-
-    with tf.variable_scope('conv2'):
-        conv2_weights = get_weight_variable([2, 2, 32, 16])
-        conv2_biases = get_bais_variable([16])
-        conv2 = tf.nn.conv2d(pool1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
-        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
-        pool2 = tf.nn.max_pool(relu2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-
-    reshaped = tf.reshape(pool2, [-1, 32])
-    with tf.variable_scope('fc_1'):
-        fc1_weights = get_weight_variable([32, 16], regularizer=regularizer)
-        fc1_biases = get_bais_variable([16])
-        fc1 = tf.nn.relu(tf.matmul(reshaped, fc1_weights) + fc1_biases)
-    with tf.variable_scope('fc_2'):
-        fc2_weights = get_weight_variable([16, 1], regularizer=regularizer)
-        fc2_biases = get_bais_variable([nn_config.OUTPUT_NODE])
-        logit = tf.matmul(fc1, fc2_weights) + fc2_biases
-
-        error = tf.reduce_sum(tf.square(logit - y_)) / nn_config.BATCH_SIZE
-        #    softMaxError = -tf.reduce_sum(y_ * tf.log(logit))
-        regularizer = tf.contrib.layers.l2_regularizer(nn_config.REGULARIZATION_RATE)
-        regularization = regularizer(fc1_weights) + regularizer(fc2_weights)
-        loss = error + regularization
-        train_step = tf.train.AdamOptimizer(nn_config.LEARNING_RATE_BASE).minimize(loss)
-    with tf.Session() as sess:
-        tf.global_variables_initializer().run()
-        for i in range(nn_config.TRAINING_STEPS):
-            sample1 = np.random.randint(0, x_train.shape[0], size=(1, nn_config.BATCH_SIZE))
-            train_datas = x_train[sample1].reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
-            train_label = y_train[sample1].reshape(-1, 1)
-
-            if i % nn_config.DISP_PER_TIMES == 0:
-                a = error.eval(feed_dict={x_1: train_datas, y_: train_label})
-                print("After %d training step(s), loss on training batch is %g." % (i, a))
-            train_step.run(feed_dict={x_1: train_datas, y_: train_label})
-
-        print("Optimization Finished!")
-        # test
-        global prediction
-        test_data = x_test.reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
-        test_label = y_test.reshape(-1, 1)
-        prediction = sess.run(logit, feed_dict={x_1: test_data, y_: test_label})
-
-
 if __name__ == '__main__':
     nn_config = LstmConfig()
     file_config = DataProcessConfig()
@@ -324,11 +257,11 @@ if __name__ == '__main__':
     prediction_real = prediction * normal_data_gap + normal_data_min
 
     # 训练程序结束，开始画图可视化
-    plot_one_day(flow_test_real[-1 - 287:], prediction_real[-1 - 287:])
+    plot_one_day(flow_test_real[-288:], prediction_real[-288:])
     d = abs(flow_test_real - prediction_real.flatten())
-    mape = sum(d / prediction_real.flatten()) / prediction_real.shape[0]
-    mae = sum(d) / prediction_real.shape[0]
+    mape = sum(d / flow_test_real.flatten()) / prediction_real.shape[0]
+    mae = sum(d) / flow_test_real.shape[0]
     print('MAPE=', mape, '\nMAE=', mae)
 
     # 数据的保存
-    sio.savemat(r'E:\\prediction_lstm_hybrid', {'pred': prediction_real})
+    pd.DataFrame(prediction_real).to_csv(r'D:\桌面\prediction_{}.csv'.format(str(mape)))

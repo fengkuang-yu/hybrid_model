@@ -17,7 +17,10 @@ import statsmodels.tsa.api as smt
 from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-# 处理输入数据
+class MergeDataFig:
+    pred_step = 1
+
+# 处理输入数据、添加index
 plt.style.use('fivethirtyeight')
 pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
@@ -36,30 +39,6 @@ deterministic = y - history_average  # 减去均值后得到的序列的部分
 history_diff_extend = np.roll(demo_average_extend, -1) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动一位
 history_diff = pd.Series(history_diff_extend)
 history_diff.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
-# 以2月1日为例画出分析后的特征图
-plt.rcParams['savefig.dpi'] = 300  # 图片像素
-plt.rcParams['figure.dpi'] = 300  # 分辨率
-history_average.iloc[0:288].plot(label='History Average', linewidth=1, fontsize=12)
-y.iloc[0:288].plot(label='Real', linewidth=1, fontsize=12)
-deterministic.iloc[0:288].plot(label='Residual Part', linewidth=1, fontsize=12)
-plt.legend(fontsize=12)
-plt.ylabel('Traffic Flow(vehicles)', fontsize=14)
-plt.xlabel('Time', fontsize=14)
-plt.show()
-
-# 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
-plt.rcParams['savefig.dpi'] = 300  # 图片像素
-plt.rcParams['figure.dpi'] = 300  # 分辨率
-plot_acf(deterministic, lags=30)
-plt.title('')
-plt.ylabel('ACF', fontsize=16)
-plt.xlabel('Time Lag(5mins)', fontsize=16)
-plt.show()
-plot_pacf(deterministic, lags=30)
-plt.title('')
-plt.ylabel('PACF', fontsize=16)
-plt.xlabel('Time Lag(5mins)', fontsize=16)
-plt.show()
 
 # 使用AIC进行模型选择
 # p = d = q = range(0, 3)
@@ -85,43 +64,11 @@ plt.show()
 residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
 residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
 smoothed_deterministic = results.fittedvalues  # deterministic中取出residuals的剩余值
-# y == results.fittedvalues + results.resid + history_average
-
-# 画出拟合残差的图像并进行ACF和PACF分析
-residuals.plot()
-plt.ylabel('Residuals(vehicles)', fontsize=14)
-plt.xlabel('Date', fontsize=14)
-plt.show()
-print(residuals.describe())
-# ARIMA的残差
-plot_acf(residuals, lags=30)
-plt.title('')
-plt.ylabel('Residuals ACF', fontsize=16)
-plt.xlabel('Time Lag(5mins)', fontsize=16)
-plt.show()
-plot_pacf(residuals, lags=30)
-plt.title('')
-plt.ylabel('Residuals PACF', fontsize=16)
-plt.xlabel('Time Lag(5mins)', fontsize=16)
-plt.show()
+# y == smoothed_deterministic + results.resid + history_average
 
 # 利用建立好的模型进行预测
 pred_test = results.forecast()
 pred = results.get_prediction(start=pd.to_datetime('2016-02-01 00:00:00'), dynamic=False)
-
-# pred_ci = pred.conf_int()  # 置信度区间计算
-# # 画出真实值和预测值的对比图
-# ax = y['2016-02-01 00:00:00':].plot(label='observed')  # 画出真实值
-# pred.predicted_mean.plot(ax=ax, label='One-step ahead Forecast', alpha=.7)  # 画出预测的值
-# ax.fill_between(pred_ci.index,  # 画出置信区间，其中pred_ci.iloc[:,0]表示的是下界，另外一个表示的是上界
-#                 pred_ci.iloc[:, 0],  # 下界
-#                 pred_ci.iloc[:, 1],  # 上界
-#                 color='k',
-#                 alpha=.2)
-# ax.set_xlabel('Date')
-# ax.set_ylabel('traffic flow')
-# plt.legend()
-# plt.show()
 
 # 计算预测误差
 arima_forecasted = pred.predicted_mean + history_average
@@ -129,25 +76,6 @@ y_truth = y['2016-02-01 00:00:00':]
 mae = ((arima_forecasted[2:] - y_truth[2:]) / y_truth[2:]).abs().mean()
 print('The Mean Absolute Error of ARIMA forecasts is {}'.format(round(mae, 5)))
 
-# 检验序列具有ARCH效应
-at = residuals[0:2880]
-at2 = np.square(at)
-fig = plt.figure(figsize=(10, 6))
-layout = (2, 2)
-at2_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
-acf_ax = plt.subplot2grid(layout, (1, 0))
-pacf_ax = plt.subplot2grid(layout, (1, 1))
-at2.plot(ax=at2_ax)
-at2_ax.legend_.remove()
-at2_ax.xaxis.set_tick_params(rotation=0, labelsize=10)
-at2_ax.set_title('Squared Residuals')
-at2_ax.set_xlabel('Date', fontsize=16)
-smt.graphics.plot_acf(at2, lags=30, ax=acf_ax, alpha=0.5)
-acf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
-smt.graphics.plot_pacf(at2, lags=30, ax=pacf_ax, alpha=0.5)
-pacf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
-plt.tight_layout()
-plt.show()
 
 # 建立GJR-ARCH模型
 am = arch_model(residuals, vol='Garch', p=1, q=1, dist='t')
@@ -188,12 +116,107 @@ merged_feature = merged_feature.rename(columns={'20.93': 'Real_data',
                                                 'h.1': 'Volatility_pred',
                                                 2: 'History_diff'})
 merged_feature = merged_feature.fillna(value=0)
+
+# 检验序列具有ARCH效应
+def arch_effect():
+    at = residuals[0:2880]
+    at2 = np.square(at)
+    fig = plt.figure(figsize=(10, 6))
+    layout = (2, 2)
+    at2_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
+    acf_ax = plt.subplot2grid(layout, (1, 0))
+    pacf_ax = plt.subplot2grid(layout, (1, 1))
+    at2.plot(ax=at2_ax)
+    at2_ax.legend_.remove()
+    at2_ax.xaxis.set_tick_params(rotation=0, labelsize=10)
+    at2_ax.set_title('Squared Residuals')
+    at2_ax.set_xlabel('Date', fontsize=16)
+    smt.graphics.plot_acf(at2, lags=30, ax=acf_ax, alpha=0.5)
+    acf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
+    smt.graphics.plot_pacf(at2, lags=30, ax=pacf_ax, alpha=0.5)
+    pacf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+# 查看波动率
+def plot_volatility():
+    merged_feature = pd.read_csv(r'D:\software\pycharm\PycharmProjects\demo\merged_data.csv')
+    Volatility_pred = merged_feature['Volatility_pred']
+    (Volatility_pred.iloc[-288:]*10).plot()
+    (res.conditional_volatility.iloc[-288:]*10).plot()
+    y.iloc[-288:].plot()
+    plt.show()
+
+# 查看历史平均、实际、趋势和残差部分
+def plot_day_fourlines(disp_day):
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    history_average.iloc[disp_day].plot(label='History Average', linewidth=1, fontsize=12)
+    y.iloc[disp_day].plot(label='Real', linewidth=1, fontsize=12)
+    deterministic.iloc[disp_day].plot(label='Residual Part', linewidth=1, fontsize=12)
+    (smoothed_deterministic + history_average).iloc[disp_day].plot(label='somoothed', linewidth=1, fontsize=12)
+    plt.legend(fontsize=6)
+    plt.ylabel('Traffic Flow(vehicles)', fontsize=14)
+    plt.xlabel('Time', fontsize=14)
+    plt.show()
+
+# 查看残差的residuals的残差
+def residuals_acf_pacf_plot():
+    # 画出拟合残差的图像并进行ACF和PACF分析
+    residuals.plot()
+    plt.ylabel('Residuals(vehicles)', fontsize=14)
+    plt.xlabel('Date', fontsize=14)
+    plt.show()
+    print(residuals.describe())
+    # ARIMA的残差
+    plot_acf(residuals, lags=30)
+    plt.title('')
+    plt.ylabel('Residuals ACF', fontsize=16)
+    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    plt.show()
+    plot_pacf(residuals, lags=30)
+    plt.title('')
+    plt.ylabel('Residuals PACF', fontsize=16)
+    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    plt.show()
+
+# 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
+def plot_deterministic():
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    plot_acf(deterministic, lags=30)
+    plt.title('')
+    plt.ylabel('ACF', fontsize=16)
+    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    plt.show()
+    plot_pacf(deterministic, lags=30)
+    plt.title('')
+    plt.ylabel('PACF', fontsize=16)
+    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    plt.show()
+
+# 分析一个月的日内趋势
+def intra_day_trend():
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    X = np.arange(1,30,1)
+    Y = np.arange(288)
+    X, Y = np.meshgrid(X, Y)
+    Z = demo_array[Y, X]
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='rainbow')
+    ax.set_title("Traffic flow over a month", fontsize=14)
+    ax.set_xlabel("Date", fontsize=12)
+    ax.set_ylabel("Time index of each day", fontsize=12)
+    ax.set_zlabel("Traffic flow(Vehicle/5 min)", fontsize=12)
+    ax.xaxis.set_tick_params(labelsize=10)
+    ax.yaxis.set_tick_params(labelsize=10)
+    ax.zaxis.set_tick_params(labelsize=10)
+    plt.show()
+
+
+
+
 merged_feature.to_csv(r'E:\merged_data.csv')
-
-
-merged_feature = pd.read_csv(r'D:\software\pycharm\PycharmProjects\demo\merged_data.csv')
-Volatility_pred = merged_feature['Volatility_pred']
-(Volatility_pred.iloc[-288:]*10).plot()
-(res.conditional_volatility.iloc[-288:]*10).plot()
-y.iloc[-288:].plot()
-plt.show()
