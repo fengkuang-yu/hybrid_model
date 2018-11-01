@@ -18,7 +18,7 @@ from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 class MergeDataFig:
-    pred_step = 1
+    PRED_STEP = 1
 
 # 处理输入数据、添加index
 plt.style.use('fivethirtyeight')
@@ -36,9 +36,18 @@ demo_average_extend = np.tile(demo_average, int(len(pd_data) / 288))
 history_average = pd.Series(demo_average_extend)
 history_average.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 deterministic = y - history_average  # 减去均值后得到的序列的部分
-history_diff_extend = np.roll(demo_average_extend, -1) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动一位
+history_diff_extend = np.roll(demo_average_extend, -1) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动1位
+history_diff_extend2 = np.roll(demo_average_extend, -2) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动2位
+history_diff_extend3 = np.roll(demo_average_extend, -3) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动3位
+history_diff_extend4 = np.roll(demo_average_extend, -4) - demo_average_extend  # np.roll()为循环移位函数，这里表示循环向右移动4位
 history_diff = pd.Series(history_diff_extend)
+history_diff2 = pd.Series(history_diff_extend2)
+history_diff3 = pd.Series(history_diff_extend3)
+history_diff4 = pd.Series(history_diff_extend4)
 history_diff.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+history_diff2.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+history_diff3.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+history_diff4.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
 # 使用AIC进行模型选择
 # p = d = q = range(0, 3)
@@ -53,14 +62,8 @@ history_diff.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, f
 #         continue
 
 # 建立ARIMA模型，最优参数根据AIC准则选取（2, 0，2）
-mod = sm.tsa.statespace.SARIMAX(deterministic,
-                                order=(2, 0, 2),
-                                enforce_stationarity=False,
-                                enforce_invertibility=False)
+mod = sm.tsa.statespace.SARIMAX(deterministic, order=(2, 0, 2), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
-print(results.summary())  # 模型的诊断表
-results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
-plt.show()
 residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
 residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
 smoothed_deterministic = results.fittedvalues  # deterministic中取出residuals的剩余值
@@ -68,7 +71,27 @@ smoothed_deterministic = results.fittedvalues  # deterministic中取出residuals
 
 # 利用建立好的模型进行预测
 pred_test = results.forecast()
-pred = results.get_prediction(start=pd.to_datetime('2016-02-01 00:00:00'), dynamic=False)
+arima_pre = pd.Series()
+arima_pre2 = pd.Series()
+arima_pre3 = pd.Series()
+arima_pre4 = pd.Series()
+for date in pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True):
+    pred = results.get_prediction(start=date, dynamic=True, full_results=True)
+    arima_pre = arima_pre.append(pred.predicted_mean[0:1])
+    if date < pd.to_datetime('2016-02-01 00:00:00'):
+        arima_pre2 = arima_pre2.append(pred.predicted_mean[1:2])
+    if date < pd.to_datetime('2016-02-01 00:00:00'):
+        arima_pre3 = arima_pre3.append(pred.predicted_mean[2:3])
+    if date < pd.to_datetime('2016-02-01 00:00:00'):
+        arima_pre4 = arima_pre4.append(pred.predicted_mean[3:4])
+    break
+
+
+
+
+a = pd.Series()
+a.append(pred.predicted_mean[1:2])
+
 
 # 计算预测误差
 arima_forecasted = pred.predicted_mean + history_average
@@ -91,7 +114,7 @@ for i in range(len(residuals) - end_loc):
     if i % 1000 == 0:
         print(i)
     res2 = am.fit(first_obs=0, last_obs=i + end_loc, disp='off')
-    temp_variance = res2.forecast(horizon=1).variance
+    temp_variance = res2.forecast(horizon=4).variance
     fcast = temp_variance.iloc[i + end_loc - 1]
     forecasts[fcast.name] = fcast
 
@@ -108,8 +131,7 @@ plt.legend()
 plt.show()
 
 # 将各特征拼接成一个DataFrame，然后导出为csv文件
-merged_feature = pd.concat([y, history_average, smoothed_deterministic, residuals, volatility_pred, history_diff],
-                           axis=1)
+merged_feature = pd.concat([y, history_average, smoothed_deterministic, residuals, volatility_pred, history_diff], axis=1)
 merged_feature = merged_feature.rename(columns={'20.93': 'Real_data',
                                                 0: 'History_average',
                                                 1: 'Smoothed_deterministic',
@@ -216,7 +238,11 @@ def intra_day_trend():
     ax.zaxis.set_tick_params(labelsize=10)
     plt.show()
 
-
+# 画出ARIMA拟合的诊断图
+def arima_diagnostics():
+    print(results.summary())  # 模型的诊断表
+    results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
+    plt.show()
 
 
 merged_feature.to_csv(r'E:\merged_data.csv')
