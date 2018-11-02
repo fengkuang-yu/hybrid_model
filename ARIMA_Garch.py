@@ -8,6 +8,7 @@
 @Desc    :
 """
 
+import time
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -75,26 +76,33 @@ arima_pre = pd.Series()
 arima_pre2 = pd.Series()
 arima_pre3 = pd.Series()
 arima_pre4 = pd.Series()
-for date in pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True):
+start_time = time.time()
+for date in pd.date_range(start='2016-02-01 00:00:00', periods=20, freq='5min', normalize=True):
     pred = results.get_prediction(start=date, dynamic=True, full_results=True)
     arima_pre = arima_pre.append(pred.predicted_mean[0:1])
-    if date < pd.to_datetime('2016-02-01 00:00:00'):
+    if date < pd.to_datetime('2016-03-30 23:50:00'):
         arima_pre2 = arima_pre2.append(pred.predicted_mean[1:2])
-    if date < pd.to_datetime('2016-02-01 00:00:00'):
+    if date < pd.to_datetime('2016-03-30 23:45:00'):
         arima_pre3 = arima_pre3.append(pred.predicted_mean[2:3])
-    if date < pd.to_datetime('2016-02-01 00:00:00'):
+    if date < pd.to_datetime('2016-03-30 23:40:00'):
         arima_pre4 = arima_pre4.append(pred.predicted_mean[3:4])
-    break
+end_time = time.time()
+time_lag = end_time - start_time
+print('Training complete in {:.0f}m {:.0f}s'.format(time_lag // 60, time_lag % 60)) # 打印出来时间
 
-
-
-
-a = pd.Series()
-a.append(pred.predicted_mean[1:2])
+# 单步预测
+date = pd.to_datetime('2016-02-01 00:00:00')
+arima_pre = results.get_prediction(start=date, dynamic=False, full_results=True)
 
 
 # 计算预测误差
-arima_forecasted = pred.predicted_mean + history_average
+arima_forecasted = arima_pre + history_average
+arima_forecasted2 = arima_pre2 + history_average
+arima_forecasted3 = arima_pre3 + history_average
+arima_forecasted4 = arima_pre4 + history_average
+
+
+
 y_truth = y['2016-02-01 00:00:00':]
 mae = ((arima_forecasted[2:] - y_truth[2:]) / y_truth[2:]).abs().mean()
 print('The Mean Absolute Error of ARIMA forecasts is {}'.format(round(mae, 5)))
@@ -185,36 +193,42 @@ def plot_day_fourlines(disp_day):
 # 查看残差的residuals的残差
 def residuals_acf_pacf_plot():
     # 画出拟合残差的图像并进行ACF和PACF分析
-    residuals.plot()
-    plt.ylabel('Residuals(vehicles)', fontsize=14)
-    plt.xlabel('Date', fontsize=14)
-    plt.show()
-    print(residuals.describe())
-    # ARIMA的残差
-    plot_acf(residuals, lags=30)
-    plt.title('')
-    plt.ylabel('Residuals ACF', fontsize=16)
-    plt.xlabel('Time Lag(5mins)', fontsize=16)
-    plt.show()
-    plot_pacf(residuals, lags=30)
-    plt.title('')
-    plt.ylabel('Residuals PACF', fontsize=16)
-    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    fig = plt.figure(figsize=(10, 8))
+    layout = (3, 1)
+    ax = plt.subplot2grid(layout, (0, 0))
+    acf_ax = plt.subplot2grid(layout, (1, 0))
+    pacf_ax = plt.subplot2grid(layout, (2, 0))
+    ax.plot(np.array(residuals.iloc[0:2880]))
+    ax.set_xlabel('Observation Points(5mins)', fontsize=16)
+    ax.set_title('Residuals')
+    ax.xaxis.set_tick_params(rotation=0, labelsize=16)
+    smt.graphics.plot_acf(residuals, lags=30, ax=acf_ax, alpha=0.5)
+    acf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
+    smt.graphics.plot_pacf(residuals, lags=30, ax=pacf_ax, alpha=0.5)
+    pacf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
+    plt.tight_layout()
     plt.show()
 
 # 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
 def plot_deterministic():
     plt.rcParams['savefig.dpi'] = 300  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    plot_acf(deterministic, lags=30)
-    plt.title('')
-    plt.ylabel('ACF', fontsize=16)
-    plt.xlabel('Time Lag(5mins)', fontsize=16)
-    plt.show()
-    plot_pacf(deterministic, lags=30)
-    plt.title('')
-    plt.ylabel('PACF', fontsize=16)
-    plt.xlabel('Time Lag(5mins)', fontsize=16)
+    fig = plt.figure(figsize=(10, 8))
+    layout = (3, 1)
+    ax = plt.subplot2grid(layout, (0, 0))
+    acf_ax = plt.subplot2grid(layout, (1, 0))
+    pacf_ax = plt.subplot2grid(layout, (2, 0))
+    ax.plot(np.array(deterministic.iloc[0:2880]))
+    ax.set_title('Residual Part')
+    ax.set_xlabel('Observation Points(5min)', fontsize=16)
+    ax.xaxis.set_tick_params(rotation=0, labelsize=16)
+    smt.graphics.plot_acf(deterministic, lags=30, ax=acf_ax, alpha=0.5)
+    acf_ax.set_xlabel('Time Lag(5min)', fontsize=16)
+    smt.graphics.plot_pacf(deterministic, lags=30, ax=pacf_ax, alpha=0.5)
+    pacf_ax.set_xlabel('Time Lag(5min)', fontsize=16)
+    plt.tight_layout()
     plt.show()
 
 # 分析一个月的日内趋势
