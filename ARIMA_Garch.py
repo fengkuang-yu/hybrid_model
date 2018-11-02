@@ -156,11 +156,10 @@ def arch_effect():
     at2_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
     acf_ax = plt.subplot2grid(layout, (1, 0))
     pacf_ax = plt.subplot2grid(layout, (1, 1))
-    at2.plot(ax=at2_ax)
-    at2_ax.legend_.remove()
-    at2_ax.xaxis.set_tick_params(rotation=0, labelsize=10)
+    at2_ax.plot(np.array(at2))
+    at2_ax.xaxis.set_tick_params(rotation=0, labelsize=16)
     at2_ax.set_title('Squared Residuals')
-    at2_ax.set_xlabel('Date', fontsize=16)
+    at2_ax.set_xlabel('Observation Points(5min)', fontsize=16)
     smt.graphics.plot_acf(at2, lags=30, ax=acf_ax, alpha=0.5)
     acf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
     smt.graphics.plot_pacf(at2, lags=30, ax=pacf_ax, alpha=0.5)
@@ -178,15 +177,16 @@ def plot_volatility():
     plt.show()
 
 # 查看历史平均、实际、趋势和残差部分
-def plot_day_fourlines(disp_day):
+def plot_day_fourlines():
+    plt.figure(figsize=(10, 6))
     plt.rcParams['savefig.dpi'] = 300  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    history_average.iloc[disp_day].plot(label='History Average', linewidth=1, fontsize=12)
-    y.iloc[disp_day].plot(label='Real', linewidth=1, fontsize=12)
-    deterministic.iloc[disp_day].plot(label='Residual Part', linewidth=1, fontsize=12)
-    (smoothed_deterministic + history_average).iloc[disp_day].plot(label='somoothed', linewidth=1, fontsize=12)
-    plt.legend(fontsize=6)
-    plt.ylabel('Traffic Flow(vehicles)', fontsize=14)
+    y.iloc[0:288].plot(label='Real', linewidth=2, fontsize=16)
+    history_average.iloc[0:288].plot(label='History Average', linewidth=2, fontsize=16)
+    deterministic.iloc[0:288].plot(label='Residual Part', linewidth=2, fontsize=16)
+    plt.legend(fontsize=16)
+    plt.box()
+    plt.ylabel('Traffic Flow(vehicles)', fontsize=16)
     plt.xlabel('Time', fontsize=14)
     plt.show()
 
@@ -195,11 +195,11 @@ def residuals_acf_pacf_plot():
     # 画出拟合残差的图像并进行ACF和PACF分析
     plt.rcParams['savefig.dpi'] = 300  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    fig = plt.figure(figsize=(10, 8))
-    layout = (3, 1)
-    ax = plt.subplot2grid(layout, (0, 0))
+    fig = plt.figure(figsize=(10, 6))
+    layout = (2, 2)
+    ax = plt.subplot2grid(layout, (0, 0), colspan=2)
     acf_ax = plt.subplot2grid(layout, (1, 0))
-    pacf_ax = plt.subplot2grid(layout, (2, 0))
+    pacf_ax = plt.subplot2grid(layout, (1, 1))
     ax.plot(np.array(residuals.iloc[0:2880]))
     ax.set_xlabel('Observation Points(5mins)', fontsize=16)
     ax.set_title('Residuals')
@@ -209,17 +209,18 @@ def residuals_acf_pacf_plot():
     smt.graphics.plot_pacf(residuals, lags=30, ax=pacf_ax, alpha=0.5)
     pacf_ax.set_xlabel('Time Lag(5mins)', fontsize=16)
     plt.tight_layout()
+    plt.box()
     plt.show()
 
 # 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
 def plot_deterministic():
     plt.rcParams['savefig.dpi'] = 300  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    fig = plt.figure(figsize=(10, 8))
-    layout = (3, 1)
-    ax = plt.subplot2grid(layout, (0, 0))
+    fig = plt.figure(figsize=(10, 6))
+    layout = (2, 2)
+    ax = plt.subplot2grid(layout, (0, 0), colspan=2)
     acf_ax = plt.subplot2grid(layout, (1, 0))
-    pacf_ax = plt.subplot2grid(layout, (2, 0))
+    pacf_ax = plt.subplot2grid(layout, (1, 1))
     ax.plot(np.array(deterministic.iloc[0:2880]))
     ax.set_title('Residual Part')
     ax.set_xlabel('Observation Points(5min)', fontsize=16)
@@ -234,7 +235,7 @@ def plot_deterministic():
 # 分析一个月的日内趋势
 def intra_day_trend():
     from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure()
+    fig = plt.figure(figsize=(10, 6))
     ax = Axes3D(fig)
     X = np.arange(1,30,1)
     Y = np.arange(288)
@@ -243,13 +244,14 @@ def intra_day_trend():
     plt.rcParams['savefig.dpi'] = 300  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
     ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='rainbow')
-    ax.set_title("Traffic flow over a month", fontsize=14)
-    ax.set_xlabel("Date", fontsize=12)
-    ax.set_ylabel("Time index of each day", fontsize=12)
-    ax.set_zlabel("Traffic flow(Vehicle/5 min)", fontsize=12)
-    ax.xaxis.set_tick_params(labelsize=10)
-    ax.yaxis.set_tick_params(labelsize=10)
-    ax.zaxis.set_tick_params(labelsize=10)
+    ax.set_title("Traffic flow over a month", fontsize=16)
+    ax.set_xlabel("Date", fontsize=16)
+    ax.set_ylabel("Time index of each day", fontsize=16)
+    ax.set_zlabel("Traffic flow(Vehicle/5 min)", fontsize=16)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.zaxis.set_tick_params(labelsize=12)
+    plt.box()
     plt.show()
 
 # 画出ARIMA拟合的诊断图
