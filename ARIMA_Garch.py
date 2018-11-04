@@ -9,6 +9,8 @@
 """
 
 import time
+import warnings
+import itertools
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -23,7 +25,7 @@ class MergeDataFig:
 
 # 处理输入数据、添加index
 plt.style.use('fivethirtyeight')
-pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
+pd_data = pd.read_csv(r'E:\pycharm_workspace\demo\data\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
 y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
@@ -51,19 +53,20 @@ history_diff3.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, 
 history_diff4.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
 # 使用AIC进行模型选择
-# p = d = q = range(0, 3)
-# pdq = list(itertools.product(p, d, q))
-# warnings.filterwarnings("ignore")  # 忽略参数配置时的警告信息
-# for param in pdq:
-#     try:
-#         mod = sm.tsa.statespace.SARIMAX(deterministic, order=param)
-#         results = mod.fit()
-#         print('ARIMA{}- AIC:{}'.format(param, results.aic))
-#     except:
-#         continue
+p = d = q = range(0, 5)
+pdq = list(itertools.product(p, d, q))
+warnings.filterwarnings("ignore")  # 忽略参数配置时的警告信息
+aic = []
+for param in pdq:
+    try:
+        mod = sm.tsa.statespace.SARIMAX(deterministic, order=param)
+        results = mod.fit()
+        aic.append('ARIMA{}- AIC:{}'.format(param, results.aic))
+    except:
+        continue
 
 # 建立ARIMA模型，最优参数根据AIC准则选取（2, 0，2）
-mod = sm.tsa.statespace.SARIMAX(deterministic, order=(2, 0, 2), enforce_stationarity=False, enforce_invertibility=False)
+mod = sm.tsa.statespace.SARIMAX(y, order=(5, 1, 2), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
 residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
 residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
@@ -77,41 +80,45 @@ arima_pre2 = pd.Series()
 arima_pre3 = pd.Series()
 arima_pre4 = pd.Series()
 start_time = time.time()
-for date in pd.date_range(start='2016-02-01 00:00:00', periods=20, freq='5min', normalize=True):
+for date in pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True):
     pred = results.get_prediction(start=date, dynamic=True, full_results=True)
     arima_pre = arima_pre.append(pred.predicted_mean[0:1])
-    if date < pd.to_datetime('2016-03-30 23:50:00'):
+    if date < pd.to_datetime('2016-03-30 23:55:00'):
         arima_pre2 = arima_pre2.append(pred.predicted_mean[1:2])
-    if date < pd.to_datetime('2016-03-30 23:45:00'):
+    if date < pd.to_datetime('2016-03-30 23:50:00'):
         arima_pre3 = arima_pre3.append(pred.predicted_mean[2:3])
-    if date < pd.to_datetime('2016-03-30 23:40:00'):
+    if date < pd.to_datetime('2016-03-30 23:45:00'):
         arima_pre4 = arima_pre4.append(pred.predicted_mean[3:4])
 end_time = time.time()
 time_lag = end_time - start_time
-print('Training complete in {:.0f}m {:.0f}s'.format(time_lag // 60, time_lag % 60)) # 打印出来时间
+print('Training complete in {:.0f}m {:.0f}s'.format(time_lag // 60, time_lag % 60))  # 打印出来时间
 
-# 单步预测
-date = pd.to_datetime('2016-02-01 00:00:00')
-arima_pre = results.get_prediction(start=date, dynamic=False, full_results=True)
+# 返还真实值
+arima_pre_real = arima_pre + history_average
+arima_pre2_real = arima_pre2 + history_average
+arima_pre3_real = arima_pre3 + history_average
+arima_pre4_real = arima_pre4 + history_average
 
-
-# 计算预测误差
-arima_forecasted = arima_pre + history_average
-arima_forecasted2 = arima_pre2 + history_average
-arima_forecasted3 = arima_pre3 + history_average
-arima_forecasted4 = arima_pre4 + history_average
-
-
-
-y_truth = y['2016-02-01 00:00:00':]
-mae = ((arima_forecasted[2:] - y_truth[2:]) / y_truth[2:]).abs().mean()
-print('The Mean Absolute Error of ARIMA forecasts is {}'.format(round(mae, 5)))
-
+# 保存预测结果
+arima_pre_real.to_csv(r'E:\arima_trend_prediction_5min.csv')
+arima_pre2_real.to_csv(r'E:\arima_trend_prediction_10min.csv')
+arima_pre3_real.to_csv(r'E:\arima_trend_prediction_15min.csv')
+arima_pre4_real.to_csv(r'E:\arima_trend_prediction_20min.csv')
 
 # 建立GJR-ARCH模型
 am = arch_model(residuals, vol='Garch', p=1, q=1, dist='t')
 res = am.fit(update_freq=5, disp='off')
 print(res.summary())
+
+# 对于波动模型建立平均分析
+demo_array = np.array(np.sqrt(res.conditional_volatility)).reshape((-1, 288)).T
+demo_average = np.mean(demo_array, axis=1)
+demo_average_extend = np.tile(demo_average, len(res.conditional_volatility) // 288)
+volatility_average = pd.Series(demo_average_extend)
+volatility_average.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+volatility_average.to_csv(r'E:\volatility.csv')
+
+# 这个的输出结果基本上和res.conditional_volatility相同
 index = residuals.index
 start_loc = 0
 end_loc = 288
@@ -129,7 +136,10 @@ for i in range(len(residuals) - end_loc):
 # 画出波动率和方差的图
 variance_pred = pd.DataFrame(forecasts).T
 variance_pred = pd.concat([temp_variance.iloc[0:287], variance_pred], axis=0)
-variance_pred = variance_pred.rename(columns={0: 'variance_pred'})  # 改变列的名字
+variance_pred = variance_pred.rename(columns={'h.1': 'variance_pred_5min',
+                                               'h.2': 'variance_pred_10min',
+                                               'h.3': 'variance_pred_15min',
+                                               'h.4': 'variance_pred_20min'})  # 改变列的名字
 volatility_pred = np.sqrt(variance_pred)
 volatility_pred.plot(label='volatility_prediction')
 plt.legend()
