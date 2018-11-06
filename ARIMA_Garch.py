@@ -19,13 +19,14 @@ import matplotlib.pyplot as plt
 import statsmodels.tsa.api as smt
 from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.stats.diagnostic import acorr_ljungbox
 
 class MergeDataFig:
     PRED_STEP = 1
 
 # 处理输入数据、添加index
 plt.style.use('fivethirtyeight')
-pd_data = pd.read_csv(r'E:\pycharm_workspace\demo\data\flow_data_59.csv')
+pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
 y = pd.Series(pd_data['20.93'])
 y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
@@ -66,7 +67,7 @@ for param in pdq:
         continue
 
 # 建立ARIMA模型，最优参数根据AIC准则选取（2, 0，2）
-mod = sm.tsa.statespace.SARIMAX(y, order=(5, 1, 2), enforce_stationarity=False, enforce_invertibility=False)
+mod = sm.tsa.statespace.SARIMAX(deterministic, order=(2, 0, 2), enforce_stationarity=False, enforce_invertibility=False)
 results = mod.fit()
 residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
 residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
@@ -106,7 +107,7 @@ arima_pre3_real.to_csv(r'E:\arima_trend_prediction_15min.csv')
 arima_pre4_real.to_csv(r'E:\arima_trend_prediction_20min.csv')
 
 # 建立GJR-ARCH模型
-am = arch_model(residuals, vol='Garch', p=1, q=1, dist='t')
+am = arch_model(residuals, vol='Garch', p=1, q=1, dist='normal')
 res = am.fit(update_freq=5, disp='off')
 print(res.summary())
 
@@ -268,6 +269,19 @@ def intra_day_trend():
 def arima_diagnostics():
     print(results.summary())  # 模型的诊断表
     results.plot_diagnostics(figsize=(15, 12))  # 模型的拟合诊断图
+    plt.show()
+
+# 对模型残差进行p值检验
+def residual_P_test():
+    residuals_p = acorr_ljungbox(np.square(results.resid))[1]
+    plt.rcParams['savefig.dpi'] = 300  # 图片像素
+    plt.rcParams['figure.dpi'] = 300  # 分辨率
+    fig = plt.figure(figsize=(10, 3))
+    ax = plt.plot(residuals_p, 'o')
+    plt.ylim((-0.05, 1))
+    plt.xlim((0, 30))
+    plt.grid(True)
+    plt.ylabel('P-value')
     plt.show()
 
 

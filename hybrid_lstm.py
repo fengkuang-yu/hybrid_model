@@ -15,6 +15,7 @@ from data_processor import *
 
 
 class LstmConfig(object):
+    PRED_STEP = 1  # 预测步数，1表示5分钟交通流量预测234分别表示10-20分钟
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
     TIME_STEPS = 6  # 用于计算的时滞
     SPACE_STEPS = 1  # LSTM输入图片的空间维度
@@ -235,19 +236,24 @@ if __name__ == '__main__':
     file_config = DataProcessConfig()
     # lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
     merged_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data.csv', index_col=0).iloc[288:, :]
+    flow_st_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_20segments.csv', index_col=0).iloc[288:, :]
+
     flow_label_real = np.array(merged_data['Real_data']).reshape(-1, 1)
     hybrid_data = np.array(merged_data)
+    st_data = np.array(flow_st_data)
     hybrid_data_normal = normal_data(hybrid_data)  # 输入DNN的特征数据
+    st_data_normal = normal_data(st_data)  # 输入的时空交通流量数据
     flow_label = normal_data(flow_label_real)  # 输入占位符y的标签数据
     lstm_data = flow_label  # 输入lstm网络的数据
 
-    # 仅使用流量作为输入
-    lstm_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-1, :]
-    hybrid_input = hybrid_data_normal[nn_config.TIME_STEPS - 1:-1, :]
-    label_ = flow_label[nn_config.TIME_STEPS:, 0]  # 构造训练测试数据
+    # 将输入数据处理为标签和数据
+    lstm_singe_input = data_pro(lstm_data, nn_config.TIME_STEPS, True)[:-nn_config.PRED_STEP, :]
+    lstm_st_input = data_pro(st_data_normal, nn_config.TIME_STEPS, True)[:-nn_config.PRED_STEP, :]
+    hybrid_input = hybrid_data_normal[nn_config.TIME_STEPS - 1:-nn_config.PRED_STEP, :]
+    label_ = flow_label[nn_config.TIME_STEPS + nn_config.PRED_STEP - 1:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
-    lstm_train_hybrid(lstm_input, hybrid_input, label_)
+    lstm_train_hybrid(lstm_st_input, hybrid_input, label_)
     # lstm_train(lstm_input, label_)
 
     # 还原数据
@@ -263,5 +269,3 @@ if __name__ == '__main__':
     mae = sum(d) / flow_test_real.shape[0]
     print('MAPE=', mape, '\nMAE=', mae)
 
-    # 数据的保存
-    pd.DataFrame(prediction_real).to_csv(r'D:\桌面\prediction_{}.csv'.format(str(mape)))

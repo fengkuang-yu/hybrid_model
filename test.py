@@ -17,6 +17,8 @@ from matplotlib.dates import DateFormatter, drange
 import matplotlib.ticker as ticker
 
 def mae_mape(pred, real):
+    pred = np.array(pred).flatten()
+    real = np.array(real).flatten()
     d = abs(pred - real)
     mape = sum(d / real) / real.shape[0]
     mae = sum(d) / real.shape[0]
@@ -56,27 +58,33 @@ def plot_one_day(data1, data2, y_label='Traffic flow(Vehicles)', x_label='Time',
     plt.xlabel(x_label)
     plt.show()
 
-# merged_data = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data.csv', index_col=0).iloc[-3340:]).flatten()
-arima_pred = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_prediction.csv', index_col=0).iloc[-3340:]).flatten()
-arima_trend_pred = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_trend_prediction.csv', index_col=0).iloc[-3340:]).flatten()
-lstm_pred = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\lstm_prediction_0.0947782581867.csv', index_col=0)).flatten()
-lstm_pred_hybrid = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\prediction_0.0821729604981.csv', index_col=0)).flatten()
-test_real = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\flow_test_real.csv', index_col=0)).flatten()
-print(len(arima_pred),len(arima_trend_pred),len(lstm_pred),len(lstm_pred_hybrid),len(test_real))
+real = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\flow_test_real.csv', index_col=0)[-3168:]
 
-arima_pred_mae, arima_pred_mape = mae_mape(arima_pred, test_real)
-arima_trend_pred_mae, arima_trend_pred_mape = mae_mape(arima_trend_pred, test_real)
-lstm_pred_mae, lstm_pred_mape = mae_mape(lstm_pred, test_real)
-lstm_pred_hybrid_mae, lstm_pred_hybrid_mape = mae_mape(lstm_pred_hybrid, test_real)
-
-plot_one_day(test_real[-288:], arima_trend_pred[-288:], legend={'real traffic flow', 'arima result'})
-# plt.plot(arima_trend_pred[-288:])
-# plt.plot(test_real[-288:])
+# ARIMA
+arima_5 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_prediction_5min.csv', index_col=0, header=None)[-3168:]
+arima_10 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_prediction_10min.csv', index_col=0, header=None)[-3168:]
+arima_15 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_prediction_15min.csv', index_col=0, header=None)[-3168:]
+arima_20 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_prediction_20min.csv', index_col=0, header=None)[-3168:]
+arima_5_mae, arima_5_mape = mae_mape(arima_5, real)
+arima_10_mae, arima_10_mape = mae_mape(arima_10, real)
+arima_15_mae, arima_15_mape = mae_mape(arima_15, real)
+arima_20_mae, arima_20_mape = mae_mape(arima_20, real)
 
 
+# ARIMA + history_average
+arima_trend_5 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_trend_prediction_5min.csv', index_col=0, header=None)[-3168:]
+arima_trend_10 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_trend_prediction_10min.csv', index_col=0, header=None)[-3168:]
+arima_trend_15 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_trend_prediction_15min.csv', index_col=0, header=None)[-3168:]
+arima_trend_20 = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\arima_trend_prediction_20min.csv', index_col=0, header=None)[-3168:]
+arima_trend_5_mae, arima_trend_5_mape = mae_mape(arima_trend_5, real)
+arima_trend_10_mae, arima_trend_10_mape = mae_mape(arima_trend_10, real)
+arima_trend_15_mae, arima_trend_15_mape = mae_mape(arima_trend_15, real)
+arima_trend_20_mae, arima_trend_20_mape = mae_mape(arima_trend_20, real)
 
-pred = np.array(pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\predicton_result\prediction_0.0856552987614.csv', index_col=0)).flatten()
-real = test_real[1:]
-d = abs(pred - real)
-mape = sum(d / real) / real.shape[0]
-mae = sum(d) / real.shape[0]
+
+flow_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv', index_col=0)
+select_segment = ['15.63', '16.12', '16.67', '17.23', '17.99', '18.7', '19.21', '19.71', '20.22', '20.93',
+                  '21.36', '21.83', '22.31', '22.73', '23.51', '23.93', '24.39', '25.17','25.68', '26.16']
+flow_select_data = flow_data[select_segment]
+flow_select_data.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+flow_select_data.to_csv(r'D:\桌面\flow_data_20segments.csv')
