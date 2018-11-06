@@ -17,7 +17,7 @@ from data_processor import *
 class LstmConfig(object):
     PRED_STEP = 1  # 预测步数，1表示5分钟交通流量预测234分别表示10-20分钟
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
-    TIME_STEPS = 6  # 用于计算的时滞
+    TIME_STEPS = 8  # 用于计算的时滞
     SPACE_STEPS = 1  # LSTM输入图片的空间维度
     OUTPUT_NODE = 1  # 输出节点个数
     HIDDEN_NODE = 32  # LSTM隐含层的神经元个数
@@ -28,7 +28,7 @@ class LstmConfig(object):
     LEARNING_RATE_BASE = 3e-4  # 初始学习率
     LEARNING_RATE_DECAY = 0.99  # 衰减
     REGULARIZATION_RATE = 1e-4  # 正则化系数
-    TRAINING_STEPS = 50000  # 迭代次数
+    TRAINING_STEPS = 20000  # 迭代次数
     DISP_PER_TIMES = 1000  # 间隔多少次显示预测效果
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
     QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
@@ -101,7 +101,7 @@ def lstm_train(data, label):
                                                         capacity=nn_config.QUEUE_CAPACITY,
                                                         min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
     train_datas = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
-    train_label = tf.reshape(train_label1, [-1, nn_config.SPACE_STEPS])
+    train_label = tf.reshape(train_label1, [-1, nn_config.OUTPUT_NODE])
 
     # 训练开始
     with tf.Session() as sess:
@@ -203,7 +203,7 @@ def lstm_train_hybrid(data1, data2, label):
                                                                      min_after_dequeue=nn_config.MIN_AFTER_DEQUEUE)
     train_datas1 = tf.reshape(train_datas1, [-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS])
     train_datas2 = tf.reshape(train_datas2, [-1, nn_config.INPUT_NODE_VAR])
-    train_label = tf.reshape(train_label, [-1, nn_config.SPACE_STEPS])
+    train_label = tf.reshape(train_label, [-1, nn_config.OUTPUT_NODE])
     # 初始化TensorFlow持久化类。
     # saver = tf.train.Saver()
     with tf.Session() as sess:
@@ -227,7 +227,7 @@ def lstm_train_hybrid(data1, data2, label):
         global prediction
         test_datas1 = x_test.reshape(-1, nn_config.TIME_STEPS * nn_config.SPACE_STEPS)
         test_datas2 = x_test2.reshape(-1, nn_config.INPUT_NODE_VAR)
-        test_label = y_train.reshape(-1, nn_config.SPACE_STEPS)
+        test_label = y_train.reshape(-1, nn_config.OUTPUT_NODE)
         prediction = sess.run(y, feed_dict={x_1: test_datas1, x_2: test_datas2, y_: test_label})
 
 
@@ -253,8 +253,8 @@ if __name__ == '__main__':
     label_ = flow_label[nn_config.TIME_STEPS + nn_config.PRED_STEP - 1:, 0]  # 构造训练测试数据
 
     # 将处理好的数据加入神经网络训练
-    lstm_train_hybrid(lstm_st_input, hybrid_input, label_)
-    # lstm_train(lstm_input, label_)
+    lstm_train_hybrid(lstm_singe_input, hybrid_input, label_)
+    # lstm_train(lstm_singe_input, label_)
 
     # 还原数据
     normal_data_min = flow_label_real.min(axis=0)
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     # 训练程序结束，开始画图可视化
     plot_one_day(flow_test_real[-288:], prediction_real[-288:])
     d = abs(flow_test_real - prediction_real.flatten())
-    mape = sum(d / flow_test_real.flatten()) / prediction_real.shape[0]
-    mae = sum(d) / flow_test_real.shape[0]
+    mape = sum(d[-3186:] / flow_test_real.flatten()[-3186:]) / 3168
+    mae = sum(d[-3186:]) / 3168
     print('MAPE=', mape, '\nMAE=', mae)
 
