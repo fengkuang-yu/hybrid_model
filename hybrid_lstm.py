@@ -15,7 +15,7 @@ from data_processor import *
 
 
 class LstmConfig(object):
-    PRED_STEP = 1  # 预测步数，1表示5分钟交通流量预测234分别表示10-20分钟
+    PRED_STEP = 2  # 预测步数，1表示5分钟交通流量预测234分别表示10-20分钟
     INPUT_NODE_VAR = 6  # 手动提取特征的数量
     TIME_STEPS = 8  # 用于计算的时滞
     SPACE_STEPS = 1  # LSTM输入图片的空间维度
@@ -25,10 +25,10 @@ class LstmConfig(object):
     FC1_HIDDEN = 64  # 聚合特征回归网络的神经元个数
     FC2_HIDDEN = 32  # 同上
     BATCH_SIZE = 100  # batchsize数
-    LEARNING_RATE_BASE = 3e-4  # 初始学习率
+    LEARNING_RATE_BASE = 1e-4  # 初始学习率
     LEARNING_RATE_DECAY = 0.99  # 衰减
     REGULARIZATION_RATE = 1e-4  # 正则化系数
-    TRAINING_STEPS = 20000  # 迭代次数
+    TRAINING_STEPS = 40000  # 迭代次数
     DISP_PER_TIMES = 1000  # 间隔多少次显示预测效果
     MOVING_AVERAGE_DECAY = 0.99  # 滑动平均衰减
     QUEUE_CAPACITY = 1000 + BATCH_SIZE * 3
@@ -236,9 +236,23 @@ if __name__ == '__main__':
     file_config = DataProcessConfig()
     # lstm_data, hybrid_data, flow_label_real = merge_data(file_config)
     merged_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data.csv', index_col=0).iloc[288:, :]
+    merged_data_5min = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data_5min.csv', index_col=0).iloc[288:, :]
+    merged_data_10min = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data_10min.csv', index_col=0).iloc[288:, :]
+    merged_data_15min = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data_15min.csv', index_col=0).iloc[288:, :]
+    merged_data_20min = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\merged_data_20min.csv', index_col=0).iloc[288:, :]
+
     flow_st_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_20segments.csv', index_col=0).iloc[288:, :]
 
     flow_label_real = np.array(merged_data['Real_data']).reshape(-1, 1)
+    if nn_config.PRED_STEP is 1:
+        merged_data = merged_data_5min
+    elif nn_config.PRED_STEP is 2:
+        merged_data = merged_data_10min
+    elif nn_config.PRED_STEP is 3:
+        merged_data = merged_data_15min
+    elif nn_config.PRED_STEP is 4:
+        merged_data = merged_data_20min
+
     hybrid_data = np.array(merged_data)
     st_data = np.array(flow_st_data)
     hybrid_data_normal = normal_data(hybrid_data)  # 输入DNN的特征数据
@@ -268,4 +282,4 @@ if __name__ == '__main__':
     mape = sum(d[-3186:] / flow_test_real.flatten()[-3186:]) / 3168
     mae = sum(d[-3186:]) / 3168
     print('MAPE=', mape, '\nMAE=', mae)
-
+    pd.Series(prediction_real.flatten()).to_csv(r'D:\桌面\prediction{}min_mape{}.csv'.format(nn_config.PRED_STEP * 5, mape))
