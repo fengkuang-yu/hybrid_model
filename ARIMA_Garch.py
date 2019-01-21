@@ -53,18 +53,18 @@ history_diff2.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, 
 history_diff3.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 history_diff4.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
 
-# 使用AIC进行模型选择
-p = d = q = range(0, 5)
-pdq = list(itertools.product(p, d, q))
-warnings.filterwarnings("ignore")  # 忽略参数配置时的警告信息
-aic = []
-for param in pdq:
-    try:
-        mod = sm.tsa.statespace.SARIMAX(deterministic, order=param)
-        results = mod.fit()
-        aic.append('ARIMA{}- AIC:{}'.format(param, results.aic))
-    except:
-        continue
+# # 使用AIC进行模型选择
+# p = d = q = range(0, 5)
+# pdq = list(itertools.product(p, d, q))
+# warnings.filterwarnings("ignore")  # 忽略参数配置时的警告信息
+# aic = []
+# for param in pdq:
+#     try:
+#         mod = sm.tsa.statespace.SARIMAX(deterministic, order=param)
+#         results = mod.fit()
+#         aic.append('ARIMA{}- AIC:{}'.format(param, results.aic))
+#     except:
+#         continue
 
 # 建立ARIMA模型，最优参数根据AIC准则选取（2, 0，2）
 mod = sm.tsa.statespace.SARIMAX(deterministic, order=(2, 0, 2), enforce_stationarity=False, enforce_invertibility=False)
