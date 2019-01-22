@@ -8,9 +8,40 @@
 @Desc    :
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
 import statsmodels.tsa.api as smt
+
+
+class MergeDataFig:
+    PRED_STEP = 1
+
+
+# 处理输入数据、添加index
+plt.style.use('fivethirtyeight')
+pd_data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\hybrid_model\Data\flow_data_59.csv')
+y = pd.Series(pd_data['20.93'])
+y.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+
+# 对输入数据进行历史平均处理,这里构造三个特征：
+# 1. 第一个特征（history_average）是历史平均值，使用历史平均值作为周期/季节成分
+# 2. 第二个特征（history_diff   ）是使用历史平均值的差分值，相当于下一刻相对于现在的变化量
+# 3. 第三个特征（deterministic  ）是实际数据减去历史平均值的每日实时波动部分
+demo_array = np.array(y).reshape((-1, 288)).T
+demo_average = np.mean(demo_array, axis=1)
+demo_average_extend = np.tile(demo_average, int(len(pd_data) / 288))
+history_average = pd.Series(demo_average_extend)
+history_average.index = pd.date_range(start='2016-02-01 00:00:00', periods=16992, freq='5min', normalize=True)
+deterministic = y - history_average  # 减去均值后得到的序列的部分
+
+# 建立ARIMA模型，最优参数根据AIC准则选取（2, 0，2）
+mod = sm.tsa.statespace.SARIMAX(deterministic, order=(2, 0, 2), enforce_stationarity=False, enforce_invertibility=False)
+results = mod.fit()
+residuals = pd.DataFrame(results.resid)  # 对于训练数据的拟合的残差值
+residuals = residuals.rename(columns={0: 'Residuals'})  # 改变列的名字
+smoothed_deterministic = results.fittedvalues  # deterministic中取出residuals的剩余值
 
 
 def plot_day_fourlines():
@@ -24,12 +55,13 @@ def plot_day_fourlines():
     plt.xlabel(u'时间', fontsize=14)
     plt.show()
 
+
 # 分析一个月的日内趋势
 def intra_day_trend():
     from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure(figsize=(10, 6))
     ax = Axes3D(fig)
-    X = np.arange(1,30,1)
+    X = np.arange(1, 30, 1)
     Y = np.arange(288)
     X, Y = np.meshgrid(X, Y)
     Z = demo_array[Y, X]
@@ -43,6 +75,7 @@ def intra_day_trend():
     ax.zaxis.set_tick_params(labelsize=12)
     plt.box()
     plt.show()
+
 
 def arch_effect():
     at = residuals[0:2880]
@@ -86,6 +119,7 @@ def residuals_acf_pacf_plot():
     plt.tight_layout()
     plt.box()
     plt.show()
+
 
 # 分析deterministic部分的相关性，自相关和互相关分析得出arima模型的参数
 def plot_deterministic():
